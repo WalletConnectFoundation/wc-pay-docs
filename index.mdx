@@ -1,0 +1,152 @@
+---
+mode: "frame"
+title: "WalletConnect Pay Documentation"
+sidebarTitle: "Home"
+description: "The Connectivity Layer for the Financial Internet"
+---
+
+import { Container, Title} from '/snippets/home/utility.mdx';
+import { ProductTiles } from '/snippets/home/product-tiles.mdx';
+import { appCategories } from '/snippets/home/data.mdx';
+import { ProductCard } from '/snippets/home/product-cards.mdx';
+
+<div className="px-5 divide-y divide-gray-100 dark:divide-white/10">
+  <Container>
+    <div className="w-full flex flex-col">
+      <div className="flex flex-col items-start justify-center w-full max-w-4xl text-left">
+        <div
+          className="text-gray-900 dark:text-gray-200 text-4xl tracking-tight"
+        >
+          WalletConnect Pay
+        </div>
+        <p
+          className="text-md text-gray-600 dark:text-gray-400 text-left mt-3 mb-4"
+        >
+        The easiest way to accept crypto payments from any wallet, any asset, anywhere.
+        </p>
+        <div className="flex flex-row gap-4 mt-5">
+        <a href="/payments/overview">
+          <button
+            type="button"
+            className="px-5 flex items-center font-medium text-sm rounded-full py-2 shadow-sm text-white dark:text-gray-900 bg-primary-dark dark:bg-primary-light hover:opacity-[0.9] hover:bg-primary justify-center"
+          >
+            Get started
+            <svg
+              className="size-3 ml-2 bg-white dark:bg-gray-900"
+              style={{
+                maskImage: 'url("https://mintlify.b-cdn.net/solid/arrow-right-long.svg")',
+                maskRepeat: 'no-repeat',
+                maskPosition: 'center center'
+              }}
+            />
+          </button>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </Container>
+   <Container>
+    <div className="flex flex-col w-full mb-8">
+      <div className="flex items-center justify-between w-full">
+        <Title>
+          Introducing WalletConnect Pay
+        </Title>
+      </div>
+      <p
+        className="text-[#5B616E] dark:text-gray-300 text-md mb-1 mt-3"
+      >
+      **[WalletConnect Pay](/payments/overview)** is a complete, end-to-end crypto payment solution that allows PSPs and merchants to accept crypto payments from any wallet and any asset through a single, familiar integration.
+      </p>
+    </div>
+    <div className="dark:hidden block">
+    <CardGroup cols={3}>
+        <ProductCard
+          title="POS SDK"
+          description="Accept crypto payments at point-of-sale as a PSP (Payment Service Provider) from any wallet and any asset through a single integration."
+          href="/payments/point-of-sale"
+          img="/images/credit-card.svg"
+          model="For PSPs"
+          type="Get started"
+        />
+        <ProductCard
+          title="Merchant Dashboard"
+          description="Monitor transactions, off-ramps, KYB, and more via the WalletConnect Pay Merchant Dashboard."
+          href="/app-sdk/overview"
+          img="/images/merchant.svg"
+          model="For Merchants"
+          type="Get started"
+        />
+         <ProductCard
+        title="Wallet Pay SDK"
+        description="Add built in support for WalletConnect Pay and allow your users to pay in real-world context, retaining custody and control of the UX."
+        href="/wallet-sdk/overview"
+        img="/images/wallet.svg"
+        model="For Wallets"
+        type="Get started"
+        /> 
+    </CardGroup>
+    </div>
+    <div className="dark:block hidden">
+    <CardGroup cols={3}>
+        <ProductCard
+          title="POS SDK"
+          description="Accept crypto payments at point-of-sale as a PSP (Payment Service Provider) from any wallet and any asset through a single integration."
+          href="/payments/point-of-sale"
+          img="/images/credit-card-dark.svg"
+          model="For PSPs"
+          type="Get started"
+        />
+        <ProductCard
+          title="Merchant Dashboard"
+          description="Monitor transactions, off-ramps, KYB, and more via the WalletConnect Pay Merchant Dashboard."
+          href="/app-sdk/overview"
+          img="/images/merchant-dark.svg"
+          model="For Merchants"
+          type="Get started"
+        />
+         <ProductCard
+        title="Wallet Pay SDK"
+        description="Add built in support for WalletConnect Pay and allow your users to pay in real-world context, retaining custody and control of the UX."
+        href="/wallet-sdk/overview"
+        img="/images/wallet-dark.svg"
+        model="For Wallets"
+        type="Get started"
+        /> 
+    </CardGroup>
+    </div>
+    <ul class="not-prose pb-[1px] h-1 min-w-full mt-3 overflow-auto" />
+  </Container>
+
+  <Container>
+    <div className="flex flex-col w-full mb-5">
+    <Title>
+      Resources
+    </Title>
+
+  </div>
+  <Columns cols={3}>
+    <Card
+      title="WalletConnect Blog"
+      icon="newspaper"
+      href="https://mintlify.com/careers#open-roles"
+    >
+    Read the latest news and updates from the WalletConnect team
+    </Card>
+    <Card
+      title="Join the WalletConnect Community"
+      icon= "discord"
+      href="https://discord.walletconnect.network/"
+    >
+    Discord community for WalletConnect Network and WCT Token
+    </Card>
+    <Card
+      title="Twitter"
+      icon="twitter"
+      href="https://x.com/WalletConnect"
+    >
+    Follow WalletConnect on X (Twitter) to stay updated on the announcements
+    </Card>
+  </Columns>
+  </Container>
+</div>
