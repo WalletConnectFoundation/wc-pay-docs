@@ -26,8 +26,11 @@
         "icon": "credit-card",
         "groups": [
           {
-            "group": "Introduction",
-            "pages": ["payments/overview"]
+            "group": "WalletConnect Pay",
+            "pages": [
+              "payments/overview",
+              "payments/for-users"
+            ]
           },
           {
             "group": "Point of Sale (POS) SDK",
@@ -35,6 +38,13 @@
               "payments/point-of-sale",
               "payments/flutter/installation",
               "payments/kotlin/installation"
+            ]
+          },
+          {
+            "group": "Merchant Dashboard",
+            "pages": [
+              "payments/merchant/onboarding",
+              "payments/merchant/faqs"
             ]
           }
         ]
