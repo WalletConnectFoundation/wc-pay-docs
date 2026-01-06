@@ -33,10 +33,9 @@
             ]
           },
           {
-            "group": "Point of Sale (POS) SDK",
+            "group": "Point of Sale (POS) Integration",
             "pages": [
               "payments/point-of-sale",
-              "payments/flutter/installation",
               "payments/kotlin/installation"
             ]
           },
