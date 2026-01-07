@@ -45,6 +45,12 @@
               "payments/merchant/onboarding",
               "payments/merchant/faqs"
             ]
+          },
+          {
+            "group": "WalletConnect Pay for Wallets",
+            "pages": [
+              "payments/wallets/overview"
+            ]
           }
         ]
       }
