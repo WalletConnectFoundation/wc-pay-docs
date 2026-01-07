@@ -33,10 +33,9 @@
             ]
           },
           {
-            "group": "Point of Sale (POS) SDK",
+            "group": "Point of Sale (POS) Integration",
             "pages": [
               "payments/point-of-sale",
-              "payments/flutter/installation",
               "payments/kotlin/installation"
             ]
           },
@@ -53,24 +52,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "WalletConnect",
-          "href": "https://walletconnect.network",
+          "anchor": "WalletConnect Pay",
+          "href": "https://walletconnect.com",
           "icon": "globe"
-        },
-        {
-          "anchor": "Community",
-          "href": "https://discord.walletconnect.network/",
-          "icon": "discord"
         },
         {
           "anchor": "Blog",
           "href": "https://walletconnect.network/blog",
           "icon": "newspaper"
-        },
-        {
-          "anchor": "Whitepaper",
-          "href": "https://whitepaper.walletconnect.network/",
-          "icon": "book"
         }
       ]
     }
@@ -97,7 +86,7 @@
   },
   "footer": {
     "socials": {
-      "website": "https://walletconnect.network",
+      "website": "https://walletconnect.com",
       "x": "https://x.com/walletconnect",
       "discord": "https://discord.walletconnect.network",
       "github": "https://github.com/WalletConnect",

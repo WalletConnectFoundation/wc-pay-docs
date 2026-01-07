@@ -62,7 +62,7 @@ import { ProductCard } from '/snippets/home/product-cards.mdx';
     <div className="dark:hidden block">
     <CardGroup cols={3}>
         <ProductCard
-          title="POS SDK"
+          title="Point of Sale (POS)"
           description="Accept crypto payments at point-of-sale as a PSP (Payment Service Provider) from any wallet and any asset through a single integration."
           href="/payments/point-of-sale"
           img="/images/credit-card.svg"
@@ -78,7 +78,7 @@ import { ProductCard } from '/snippets/home/product-cards.mdx';
           type="Get started"
         />
          <ProductCard
-        title="Wallet Pay SDK"
+        title="Wallet Integration"
         description="Add built in support for WalletConnect Pay and allow your users to pay in real-world context, retaining custody and control of the UX."
         href="/wallet-sdk/overview"
         img="/images/wallet.svg"
@@ -90,7 +90,7 @@ import { ProductCard } from '/snippets/home/product-cards.mdx';
     <div className="dark:block hidden">
     <CardGroup cols={3}>
         <ProductCard
-          title="POS SDK"
+          title="Point of Sale (POS)"
           description="Accept crypto payments at point-of-sale as a PSP (Payment Service Provider) from any wallet and any asset through a single integration."
           href="/payments/point-of-sale"
           img="/images/credit-card-dark.svg"
@@ -106,7 +106,7 @@ import { ProductCard } from '/snippets/home/product-cards.mdx';
           type="Get started"
         />
          <ProductCard
-        title="Wallet Pay SDK"
+        title="Wallet Integration"
         description="Add built in support for WalletConnect Pay and allow your users to pay in real-world context, retaining custody and control of the UX."
         href="/wallet-sdk/overview"
         img="/images/wallet-dark.svg"
@@ -117,6 +117,51 @@ import { ProductCard } from '/snippets/home/product-cards.mdx';
     </div>
     <ul class="not-prose pb-[1px] h-1 min-w-full mt-3 overflow-auto" />
   </Container>
+
+  <Container>
+    <div className="flex flex-col w-full mb-5">
+      <Title>
+        Learn more about WalletConnect Pay
+      </Title>
+      <p
+        className="text-[#5B616E] dark:text-gray-300 text-md mb-1 mt-3"
+      >
+      A curated list of educational resources about WalletConnect Pay and crypto payments.
+      </p>
+
+    </div>
+    <Columns cols={3}>
+      <Card
+        title="What are Crypto Payments?"
+        icon="credit-card"
+        href="https://walletconnect.com/blog/what-are-crypto-payments-a-clear-guide-to-how-stablecoin-and-wallet-payments-work"
+      >
+        A clear guide to how Stablecoin and Wallet payments work.
+      </Card>
+      <Card
+        title="Why Crypto Payments Are Finally Ready for the Real World"
+        icon="globe"
+        href="https://walletconnect.com/blog/payments-pulse-why-crypto-payments-are-finally-ready-for-the-real-world"
+      >
+      Learn what it takes to make crypto payments usable in the real world.
+      </Card>
+      <Card
+        title="Accept USDC Payments Anywhere"
+        icon="dollar-sign"
+        href="https://walletconnect.com/blog/accept-usdc-payments-anywhere"
+      >
+      Learn how to accept USDC anywhere with WalletConnect Pay.
+      </Card>
+      <Card
+        title="What’s stopping you from receiving Stablecoins?"
+        icon="money-bill"
+        href="https://walletconnect.com/blog/whats-stopping-you-from-receiving-stablecoins"
+      >
+      A legal deep dive into why stablecoins are not yet mainstream.
+      </Card>
+    </Columns>
+  </Container>
+
 
   <Container>
     <div className="flex flex-col w-full mb-5">
