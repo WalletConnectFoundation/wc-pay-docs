@@ -49,9 +49,9 @@ As providers like **Visa**, **PayPal**, and **Stripe** experiment with stablecoi
         Customers simply scan, confirm, and pay. Payments settle onchain in seconds with a **familiar checkout experience** similar to Apple Pay or tap-to-pay.
     </Step>
     <Step title="Multi-Chain with Full Visibility" icon="ethernet">
-        Supports **EVM, Solana, and Tron** from day one. Provides standardized transaction statuses for reconciliation and customer support:
-        
-        `[new, pending_onchain, confirmed, underpaid, overpaid, expired, failed]`.
+        Supports **EVM, Solana, and Tron** from day one. Provides a standardized payment lifecycle that you can use for reconciliation and customer support:
+
+        `[PaymentCreated, PaymentRequested, PaymentProcessing, PaymentSuccess, PaymentError]`.
     </Step>
 </Steps>
 
@@ -111,4 +111,4 @@ WalletConnect POS SDK does not handle refunds or reconciliation directly. It is 
 | **Assets** | Native tokens and Stablecoins (e.g., USDC, USDT, ETH, SOL, etc.) |
 | **Networks at Launch** | EVM chains (Ethereum, Optimism, Base, etc.), Solana, Tron |
 | **Wallet Coverage** | 500+ WalletConnect-compatible wallets |
-| **Transaction Lifecycle** | Standardized callbacks -> `PaymentSuccessfulEvent`, `PaymentFailedEvent` |
+| **Transaction Lifecycle** | Standardized events -> `PaymentCreated`, `PaymentRequested`, `PaymentProcessing`, `PaymentSuccess`, `PaymentError` |
