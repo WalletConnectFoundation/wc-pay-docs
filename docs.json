@@ -51,6 +51,12 @@
             "pages": [
               "payments/wallets/overview"
             ]
+          },
+          {
+            "group": "Ecommerce and Online Checkout",
+            "pages": [
+              "payments/ecommerce/overview"
+            ]
           }
         ]
       }
