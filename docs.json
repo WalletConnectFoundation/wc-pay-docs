@@ -51,6 +51,12 @@
             "pages": [
               "payments/wallets/overview"
             ]
+          },
+          {
+            "group": "Ecommerce and Online Checkout",
+            "pages": [
+              "payments/ecommerce/overview"
+            ]
           }
         ]
       }
@@ -83,8 +89,8 @@
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.walletconnect.com"
+      "label": "Request Demo",
+      "href": "https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s"
     }
   },
   "contextual": {
