@@ -42,8 +42,7 @@
           {
             "group": "Merchant Dashboard",
             "pages": [
-              "payments/merchant/onboarding",
-              "payments/merchant/faqs"
+              "payments/merchant/onboarding"
             ]
           },
           {
