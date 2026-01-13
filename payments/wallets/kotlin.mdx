@@ -55,11 +55,7 @@ The SDK will throw `IllegalStateException` if already initialized. Call `initial
 
 The payment flow consists of five main steps:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  1. Get Options │───▶│  2. Get Actions │───▶│  3. Sign Actions│───▶│ 4. Collect Data │───▶│ 5. Confirm Pay  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+**Get Options → Get Actions → Sign Actions → Collect Data → Confirm Payment**
 
 <Steps>
 
