@@ -45,12 +45,15 @@
               "payments/merchant/onboarding"
             ]
           },
-          {
-            "group": "WalletConnect Pay for Wallets",
-            "pages": [
-              "payments/wallets/overview"
-            ]
-          },
+                    {
+                      "group": "WalletConnect Pay for Wallets",
+                      "pages": [
+                        "payments/wallets/overview",
+                        "payments/wallets/swift",
+                        "payments/wallets/kotlin",
+                        "payments/wallets/react-native"
+                      ]
+                    },
           {
             "group": "Ecommerce and Online Checkout",
             "pages": [

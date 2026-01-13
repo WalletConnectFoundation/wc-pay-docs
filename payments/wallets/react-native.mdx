@@ -1,0 +1,433 @@
+---
+title: "WalletConnect Pay SDK - React Native Installation"
+description: "Integrate WalletConnect Pay into your React Native wallet to enable seamless crypto payments for your users."
+sidebarTitle: "React Native"
+---
+
+The WalletConnect Pay SDK is a TypeScript SDK for WalletConnect Pay that enables payment functionality for React Native wallet applications. The SDK uses a provider abstraction that allows different implementations based on your environment.
+
+## Requirements
+
+- React Native 0.70+
+- `@walletconnect/react-native-compat` installed and linked
+
+## Installation
+
+Install the WalletConnect Pay SDK using npm or yarn:
+
+```bash
+npm install @walletconnect/pay
+```
+
+or
+
+```bash
+yarn add @walletconnect/pay
+```
+
+### React Native Setup
+
+This SDK requires the WalletConnect React Native native module. Make sure you have `@walletconnect/react-native-compat` installed and linked in your React Native project:
+
+```bash
+npm install @walletconnect/react-native-compat
+```
+
+## Architecture
+
+The SDK uses a provider abstraction that allows different implementations:
+
+- **NativeProvider**: Uses React Native uniffi module (current)
+- **WasmProvider**: Uses WebAssembly module (coming soon for web browsers)
+
+The SDK auto-detects the best available provider for your environment.
+
+## Configuration
+
+Initialize the WalletConnect Pay client with your credentials:
+
+```typescript
+import { WalletConnectPay } from "@walletconnect/pay";
+
+const client = new WalletConnectPay({
+  projectId: "your-project-id",
+  apiKey: "your-api-key",
+});
+```
+
+### Configuration Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `projectId` | `string` | Yes | Your WalletConnect Cloud project ID |
+| `apiKey` | `string` | Yes | Your WalletConnect Pay API key |
+| `baseUrl` | `string` | No | Custom API base URL |
+| `logger` | `Logger` | No | Custom logger instance or level |
+
+## Payment Flow
+
+The payment flow consists of four main steps:
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  1. Get Options │───▶│  2. Get Actions │───▶│  3. Sign Actions│───▶│ 4. Confirm Pay  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+<Steps>
+
+<Step title="Get Payment Options" titleSize="h3">
+
+When a user scans a payment QR code or opens a payment link, fetch available payment options:
+
+```typescript
+const options = await client.getPaymentOptions({
+  paymentLink: "https://pay.walletconnect.com/pay_123",
+  accounts: [
+    `eip155:1:${walletAddress}`,      // Ethereum Mainnet
+    `eip155:137:${walletAddress}`,    // Polygon
+    `eip155:8453:${walletAddress}`,   // Base
+    `eip155:42161:${walletAddress}`,  // Arbitrum
+  ],
+  includePaymentInfo: true,
+});
+
+console.log("Payment ID:", options.paymentId);
+console.log("Options:", options.options);
+
+// Display merchant info
+if (options.info) {
+  console.log("Merchant:", options.info.merchant.name);
+  console.log("Amount:", options.info.amount.display.assetSymbol, options.info.amount.value);
+}
+
+// Check if user data collection is required
+if (options.collectData) {
+  console.log("Required fields:", options.collectData.fields);
+}
+```
+
+</Step>
+
+<Step title="Get Required Actions" titleSize="h3">
+
+After the user selects a payment option, get the wallet RPC actions required to complete the payment:
+
+```typescript
+const actions = await client.getRequiredPaymentActions({
+  paymentId: options.paymentId,
+  optionId: options.options[0].id,
+});
+
+// Each action contains wallet RPC data to sign
+for (const action of actions) {
+  console.log("Chain:", action.walletRpc.chainId);
+  console.log("Method:", action.walletRpc.method);
+  console.log("Params:", action.walletRpc.params);
+}
+```
+
+</Step>
+
+<Step title="Sign Actions" titleSize="h3">
+
+Sign each action with your wallet's signing implementation:
+
+```typescript
+// Sign each action with your wallet (implementation depends on your wallet SDK)
+const signatures = await Promise.all(
+  actions.map((action) =>
+    wallet.signTypedData(
+      action.walletRpc.chainId,
+      JSON.parse(action.walletRpc.params)
+    )
+  )
+);
+```
+
+<Warning>
+Signatures must be in the same order as the actions array.
+</Warning>
+
+</Step>
+
+<Step title="Collect User Data (If Required)" titleSize="h3">
+
+Some payments may require additional user data. Check for `collectData` in the payment options response:
+
+```typescript
+let collectedData: CollectDataFieldResult[] | undefined;
+
+if (options.collectData) {
+  // Show UI to collect required fields
+  collectedData = options.collectData.fields.map((field) => ({
+    id: field.id,
+    value: getUserInput(field.name, field.fieldType),
+  }));
+}
+```
+
+</Step>
+
+<Step title="Confirm Payment" titleSize="h3">
+
+Submit the signatures and collected data to complete the payment:
+
+```typescript
+const result = await client.confirmPayment({
+  paymentId: options.paymentId,
+  optionId: options.options[0].id,
+  signatures,
+  collectedData, // Include if collectData was present
+});
+
+if (result.status === "succeeded") {
+  console.log("Payment successful!");
+} else if (result.status === "processing") {
+  console.log("Payment is processing...");
+} else if (result.status === "failed") {
+  console.log("Payment failed");
+}
+```
+
+</Step>
+
+</Steps>
+
+## Complete Example
+
+Here's a complete implementation example:
+
+```typescript
+import { WalletConnectPay, CollectDataFieldResult } from "@walletconnect/pay";
+
+class PaymentManager {
+  private client: WalletConnectPay;
+
+  constructor() {
+    this.client = new WalletConnectPay({
+      projectId: "your-project-id",
+      apiKey: "your-api-key",
+    });
+  }
+
+  async processPayment(paymentLink: string, walletAddress: string) {
+    try {
+      // Step 1: Get payment options
+      const options = await this.client.getPaymentOptions({
+        paymentLink,
+        accounts: [
+          `eip155:1:${walletAddress}`,
+          `eip155:137:${walletAddress}`,
+          `eip155:8453:${walletAddress}`,
+        ],
+        includePaymentInfo: true,
+      });
+
+      if (options.options.length === 0) {
+        throw new Error("No payment options available");
+      }
+
+      // Step 2: Let user select an option (simplified - use first option)
+      const selectedOption = options.options[0];
+
+      // Step 3: Get required actions
+      const actions = await this.client.getRequiredPaymentActions({
+        paymentId: options.paymentId,
+        optionId: selectedOption.id,
+      });
+
+      // Step 4: Sign all actions
+      const signatures = await Promise.all(
+        actions.map((action) =>
+          this.signAction(action, walletAddress)
+        )
+      );
+
+      // Step 5: Collect user data if required
+      let collectedData: CollectDataFieldResult[] | undefined;
+      if (options.collectData) {
+        collectedData = await this.collectUserData(options.collectData.fields);
+      }
+
+      // Step 6: Confirm payment
+      const result = await this.client.confirmPayment({
+        paymentId: options.paymentId,
+        optionId: selectedOption.id,
+        signatures,
+        collectedData,
+      });
+
+      return result;
+    } catch (error) {
+      console.error("Payment failed:", error);
+      throw error;
+    }
+  }
+
+  private async signAction(action: Action, walletAddress: string): Promise<string> {
+    const { chainId, method, params } = action.walletRpc;
+    
+    // Use your wallet's signing implementation
+    return await wallet.signTypedData(chainId, JSON.parse(params));
+  }
+
+  private async collectUserData(fields: CollectDataField[]): Promise<CollectDataFieldResult[]> {
+    // Implement your UI to collect user data
+    return fields.map((field) => ({
+      id: field.id,
+      value: getUserInput(field.name, field.fieldType),
+    }));
+  }
+}
+```
+
+## Provider Utilities
+
+The SDK provides utilities for checking provider availability:
+
+```typescript
+import {
+  isProviderAvailable,
+  detectProviderType,
+  isNativeProviderAvailable,
+  setNativeModule,
+} from "@walletconnect/pay";
+
+// Check if any provider is available
+if (isProviderAvailable()) {
+  // SDK can be used
+}
+
+// Detect which provider type is available
+const providerType = detectProviderType(); // 'native' | 'wasm' | null
+
+// Check specifically for native provider
+if (isNativeProviderAvailable()) {
+  // React Native native module is available
+}
+
+// Manually inject native module (if auto-discovery fails)
+import { NativeModules } from "react-native";
+setNativeModule(NativeModules.RNWalletConnectPay);
+```
+
+## Error Handling
+
+The SDK throws typed errors for different failure scenarios:
+
+```typescript
+import { PayError, PaymentOptionsError, ConfirmPaymentError } from "@walletconnect/pay";
+
+try {
+  const options = await client.getPaymentOptions({
+    paymentLink: link,
+    accounts,
+  });
+} catch (error) {
+  if (error instanceof PaymentOptionsError) {
+    console.error("Failed to get options:", error.originalMessage);
+  } else if (error instanceof PayError) {
+    console.error("Pay error:", error.code, error.message);
+  }
+}
+```
+
+### Error Types
+
+| Error Class | Description |
+|-------------|-------------|
+| `PayError` | Base error class for all Pay SDK errors |
+| `PaymentOptionsError` | Error when fetching payment options |
+| `ConfirmPaymentError` | Error when confirming payment |
+
+## API Reference
+
+### WalletConnectPay
+
+Main client for payment operations.
+
+#### Constructor
+
+```typescript
+new WalletConnectPay(options: WalletConnectPayOptions)
+```
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `getPaymentOptions(params)` | Fetch available payment options |
+| `getRequiredPaymentActions(params)` | Get signing actions for a payment option |
+| `confirmPayment(params)` | Confirm and execute the payment |
+| `static isAvailable()` | Check if a provider is available |
+
+### Data Types
+
+#### PaymentStatus
+
+```typescript
+type PaymentStatus = 
+  | "requires_action" 
+  | "processing" 
+  | "succeeded" 
+  | "failed" 
+  | "expired";
+```
+
+#### PaymentOption
+
+```typescript
+interface PaymentOption {
+  id: string;
+  amount: PayAmount;
+  etaS: number;
+  actions: Action[];
+}
+```
+
+#### Action
+
+```typescript
+interface Action {
+  walletRpc: WalletRpcAction;
+}
+
+interface WalletRpcAction {
+  chainId: string;   // e.g., "eip155:8453"
+  method: string;    // e.g., "eth_signTypedData_v4"
+  params: string;    // JSON string
+}
+```
+
+#### CollectDataField
+
+```typescript
+interface CollectDataField {
+  id: string;
+  name: string;
+  fieldType: "text" | "date";
+  required: boolean;
+}
+
+interface CollectDataFieldResult {
+  id: string;
+  value: string;
+}
+```
+
+## Best Practices
+
+1. **Check Provider Availability**: Always check if a provider is available before using the SDK
+
+2. **Account Format**: Always use CAIP-10 format for accounts: `eip155:{chainId}:{address}`
+
+3. **Multiple Chains**: Provide accounts for all supported chains to maximize payment options
+
+4. **Signature Order**: Maintain the same order of signatures as the actions array
+
+5. **Error Handling**: Always handle errors gracefully and show appropriate user feedback
+
+6. **Loading States**: Show loading indicators during API calls and signing operations
+
+7. **User Data**: Only collect data when `collectData` is present in the response
