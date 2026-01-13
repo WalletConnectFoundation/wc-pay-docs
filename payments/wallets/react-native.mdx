@@ -15,15 +15,18 @@ The WalletConnect Pay SDK is a TypeScript SDK for WalletConnect Pay that enables
 
 Install the WalletConnect Pay SDK using npm or yarn:
 
+<Tabs>
+<Tab title="npm">
 ```bash
 npm install @walletconnect/pay
 ```
-
-or
-
+</Tab>
+<Tab title="yarn">
 ```bash
 yarn add @walletconnect/pay
 ```
+</Tab>
+</Tabs>
 
 ### React Native Setup
 
@@ -313,7 +316,13 @@ setNativeModule(NativeModules.RNWalletConnectPay);
 The SDK throws typed errors for different failure scenarios:
 
 ```typescript
-import { PayError, PaymentOptionsError, ConfirmPaymentError } from "@walletconnect/pay";
+import { 
+  PayError, 
+  PaymentOptionsError, 
+  PaymentActionsError,
+  ConfirmPaymentError,
+  NativeModuleNotFoundError 
+} from "@walletconnect/pay";
 
 try {
   const options = await client.getPaymentOptions({
@@ -335,7 +344,25 @@ try {
 |-------------|-------------|
 | `PayError` | Base error class for all Pay SDK errors |
 | `PaymentOptionsError` | Error when fetching payment options |
+| `PaymentActionsError` | Error when fetching required payment actions |
 | `ConfirmPaymentError` | Error when confirming payment |
+| `NativeModuleNotFoundError` | Error when native module is not available |
+
+### Error Codes
+
+The `PayError` class includes a `code` property with one of the following values:
+
+```typescript
+type PayErrorCode =
+  | "JSON_PARSE"
+  | "JSON_SERIALIZE"
+  | "PAYMENT_OPTIONS"
+  | "PAYMENT_REQUEST"
+  | "CONFIRM_PAYMENT"
+  | "NATIVE_MODULE_NOT_FOUND"
+  | "INITIALIZATION_ERROR"
+  | "UNKNOWN";
+```
 
 ## API Reference
 
@@ -371,13 +398,84 @@ type PaymentStatus =
   | "expired";
 ```
 
+#### PayProviderType
+
+```typescript
+type PayProviderType = "native" | "wasm";
+```
+
+#### CollectDataFieldType
+
+```typescript
+type CollectDataFieldType = "text" | "date";
+```
+
+#### Method Parameters
+
+```typescript
+interface GetPaymentOptionsParams {
+  /** Payment link or ID */
+  paymentLink: string;
+  /** List of CAIP-10 accounts */
+  accounts: string[];
+  /** Whether to include payment info in response */
+  includePaymentInfo?: boolean;
+}
+
+interface GetRequiredPaymentActionsParams {
+  /** Payment ID */
+  paymentId: string;
+  /** Option ID */
+  optionId: string;
+}
+
+interface ConfirmPaymentParams {
+  /** Payment ID */
+  paymentId: string;
+  /** Option ID */
+  optionId: string;
+  /** Signatures from wallet RPC calls */
+  signatures: string[];
+  /** Collected data fields (if required) */
+  collectedData?: CollectDataFieldResult[];
+}
+```
+
+#### Response Types
+
+```typescript
+interface PaymentOptionsResponse {
+  /** Payment ID extracted from the payment link */
+  paymentId: string;
+  /** Payment information (if includePaymentInfo was true) */
+  info?: PaymentInfo;
+  /** Available payment options */
+  options: PaymentOption[];
+  /** Data collection requirements (if any) */
+  collectData?: CollectDataAction;
+}
+
+interface ConfirmPaymentResponse {
+  /** Payment status */
+  status: PaymentStatus;
+  /** True if the payment is in a final state */
+  isFinal: boolean;
+  /** Time to poll for payment status, in milliseconds */
+  pollInMs?: number;
+}
+```
+
 #### PaymentOption
 
 ```typescript
 interface PaymentOption {
+  /** ID of the option */
   id: string;
+  /** The option's token and amount */
   amount: PayAmount;
+  /** Estimated time to complete the option, in seconds */
   etaS: number;
+  /** Actions required to complete the option */
   actions: Action[];
 }
 ```
@@ -390,20 +488,90 @@ interface Action {
 }
 
 interface WalletRpcAction {
-  chainId: string;   // e.g., "eip155:8453"
-  method: string;    // e.g., "eth_signTypedData_v4"
-  params: string;    // JSON string
+  /** Chain ID in CAIP-2 format (e.g., "eip155:8453") */
+  chainId: string;
+  /** RPC method name (e.g., "eth_signTypedData_v4") */
+  method: string;
+  /** JSON-encoded params array */
+  params: string;
 }
 ```
 
-#### CollectDataField
+#### Amount Types
 
 ```typescript
-interface CollectDataField {
-  id: string;
+interface PayAmount {
+  /** Currency unit, prefixed with either "iso4217/" or "caip19/" */
+  unit: string;
+  /** Amount value, in the currency unit's minor units */
+  value: string;
+  /** Display information for the amount */
+  display: AmountDisplay;
+}
+
+interface AmountDisplay {
+  /** Ticker/symbol of the asset */
+  assetSymbol: string;
+  /** Full name of the asset */
+  assetName: string;
+  /** Number of minor decimals of the asset */
+  decimals: number;
+  /** URL of the icon of the asset (if token) */
+  iconUrl?: string;
+  /** Name of the network of the asset (if token) */
+  networkName?: string;
+}
+```
+
+#### Payment Info Types
+
+```typescript
+interface PaymentInfo {
+  /** Payment status */
+  status: PaymentStatus;
+  /** Amount to be paid */
+  amount: PayAmount;
+  /** Payment expiration timestamp, in seconds since epoch */
+  expiresAt: number;
+  /** Merchant information */
+  merchant: MerchantInfo;
+  /** Buyer information (present if payment has been submitted) */
+  buyer?: BuyerInfo;
+}
+
+interface MerchantInfo {
+  /** Merchant name */
   name: string;
-  fieldType: "text" | "date";
+  /** Merchant icon URL */
+  iconUrl?: string;
+}
+
+interface BuyerInfo {
+  /** Account CAIP-10 */
+  accountCaip10: string;
+  /** Account provider name */
+  accountProviderName: string;
+  /** Account provider icon URL */
+  accountProviderIcon?: string;
+}
+```
+
+#### Collect Data Types
+
+```typescript
+interface CollectDataAction {
+  fields: CollectDataField[];
+}
+
+interface CollectDataField {
+  /** ID of the field for submission */
+  id: string;
+  /** Human readable name of the field */
+  name: string;
+  /** Whether the field is required */
   required: boolean;
+  /** Type of the field */
+  fieldType: CollectDataFieldType;
 }
 
 interface CollectDataFieldResult {
