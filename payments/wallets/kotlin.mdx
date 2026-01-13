@@ -57,15 +57,18 @@ The SDK will throw `IllegalStateException` if already initialized. Call `initial
 
 ## Supported Networks
 
-WalletConnect Pay supports all EVM-compatible chains and Solana. When providing accounts, use the CAIP-10 format:
+WalletConnect Pay currently supports the following networks with USDC:
 
-| Chain Type | CAIP-10 Format | Example |
-|------------|----------------|---------|
-| EVM chains | `eip155:{chainId}:{address}` | `eip155:1:0x123...` (Ethereum Mainnet) |
-| Solana | `solana:{cluster}:{address}` | `solana:mainnet:ABC...` |
+| Network | Chain ID | CAIP-10 Format |
+|---------|----------|----------------|
+| Ethereum | 1 | `eip155:1:{address}` |
+| Base | 8453 | `eip155:8453:{address}` |
+| Optimism | 10 | `eip155:10:{address}` |
+| Polygon | 137 | `eip155:137:{address}` |
+| Arbitrum | 42161 | `eip155:42161:{address}` |
 
 <Note>
-Include accounts for all networks you want to support to maximize payment options for your users. Popular EVM chains include Ethereum (1), Polygon (137), Base (8453), Arbitrum (42161), and Optimism (10).
+Support for all EVM chains, Solana, and additional native and non-native assets is coming soon. Include accounts for all supported networks to maximize payment options for your users.
 </Note>
 
 ## Payment Flow
