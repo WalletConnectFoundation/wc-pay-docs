@@ -47,15 +47,70 @@ WalletConnectPay.initialize(
 | `projectId` | `String` | Yes | Your WalletConnect Cloud project ID |
 | `packageName` | `String` | Yes | Your application's package name |
 
+<Info>
+Don't have a project ID? Create one at [WalletConnect Cloud](https://cloud.walletconnect.com) by signing up and creating a new project.
+</Info>
+
 <Warning>
 The SDK will throw `IllegalStateException` if already initialized. Call `initialize()` only once.
 </Warning>
+
+## Supported Networks
+
+WalletConnect Pay supports the following EVM-compatible networks:
+
+| Network | Chain ID | CAIP-2 Identifier |
+|---------|----------|-------------------|
+| Ethereum Mainnet | 1 | `eip155:1` |
+| Polygon | 137 | `eip155:137` |
+| Base | 8453 | `eip155:8453` |
+| Arbitrum One | 42161 | `eip155:42161` |
+| Optimism | 10 | `eip155:10` |
+
+<Note>
+When providing accounts, use the CAIP-10 format: `eip155:{chainId}:{address}`. Include accounts for all networks you want to support to maximize payment options for your users.
+</Note>
 
 ## Payment Flow
 
 The payment flow consists of five main steps:
 
 **Get Options → Get Actions → Sign Actions → Collect Data → Confirm Payment**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant PaySDK as Pay SDK
+    participant Backend as WalletConnect Pay
+
+    User->>Wallet: Scan QR / Open payment link
+    Wallet->>PaySDK: getPaymentOptions(link, accounts)
+    PaySDK->>Backend: Fetch payment options
+    Backend-->>PaySDK: Payment options + merchant info
+    PaySDK-->>Wallet: PaymentOptionsResponse
+    Wallet->>User: Display payment options
+    
+    User->>Wallet: Select payment option
+    Wallet->>PaySDK: getRequiredPaymentActions(paymentId, optionId)
+    PaySDK->>Backend: Get signing actions
+    Backend-->>PaySDK: Required wallet RPC actions
+    PaySDK-->>Wallet: List of actions to sign
+    
+    Wallet->>User: Request signature(s)
+    User->>Wallet: Approve & sign
+    
+    alt Data collection required
+        Wallet->>User: Request additional info
+        User->>Wallet: Provide data
+    end
+    
+    Wallet->>PaySDK: confirmPayment(signatures, collectedData)
+    PaySDK->>Backend: Submit payment
+    Backend-->>PaySDK: Payment status
+    PaySDK-->>Wallet: ConfirmPaymentResponse
+    Wallet->>User: Show result
+```
 
 <Steps>
 
