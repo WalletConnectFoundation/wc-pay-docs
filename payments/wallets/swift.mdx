@@ -64,18 +64,15 @@ Don't have a project ID? Create one at the [WalletConnect Dashboard](https://das
 
 ## Supported Networks
 
-WalletConnect Pay supports the following EVM-compatible networks:
+WalletConnect Pay supports all EVM-compatible chains and Solana. When providing accounts, use the CAIP-10 format:
 
-| Network | Chain ID | CAIP-2 Identifier |
-|---------|----------|-------------------|
-| Ethereum Mainnet | 1 | `eip155:1` |
-| Polygon | 137 | `eip155:137` |
-| Base | 8453 | `eip155:8453` |
-| Arbitrum One | 42161 | `eip155:42161` |
-| Optimism | 10 | `eip155:10` |
+| Chain Type | CAIP-10 Format | Example |
+|------------|----------------|---------|
+| EVM chains | `eip155:{chainId}:{address}` | `eip155:1:0x123...` (Ethereum Mainnet) |
+| Solana | `solana:{cluster}:{address}` | `solana:mainnet:ABC...` |
 
 <Note>
-When providing accounts, use the CAIP-10 format: `eip155:{chainId}:{address}`. Include accounts for all networks you want to support to maximize payment options for your users.
+Include accounts for all networks you want to support to maximize payment options for your users. Popular EVM chains include Ethereum (1), Polygon (137), Base (8453), Arbitrum (42161), and Optimism (10).
 </Note>
 
 ## Payment Flow
