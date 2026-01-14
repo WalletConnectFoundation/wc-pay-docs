@@ -1,0 +1,51 @@
+---
+title: "API-first integration (Non-SDK wallets)"
+sidebarTitle: "API-first (No SDK)"
+description: "Integrate WalletConnect Pay in a wallet without an SDK, using the Gateway API."
+---
+
+If you’re integrating WalletConnect Pay into a wallet **without using the Wallet Pay SDK**, you can use an API-first approach via the **Gateway API**.
+
+This flow is centered around **three Gateway calls**:
+
+- **Get payment options**: list options the user can complete with their wallet/accounts
+- **Fetch an action**: resolve “build” actions into wallet RPC actions when needed
+- **Confirm a payment**: submit the selected option and the executed action results
+
+## Prerequisites
+
+- **API key**: request access from WalletConnect
+  - You can do this by filling out [**this form**](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
+- **Wallet identity headers** (required on each request):
+  - `Sdk-Name`
+  - `Sdk-Version`
+  - `Sdk-Platform`
+
+## High-level flow
+
+### 1) Get payment options
+
+Call **Get payment options** for the given `paymentId`, passing a list of accounts (CAIP-10 / chain namespace format as provided by your wallet).
+
+- Use this response to render:
+  - payment details (optionally, if `includePaymentInfo=true`)
+  - available `options[]` the user can pick from
+  - required `actions[]` for the chosen option
+
+### 2) Fetch an action (only if required)
+
+If an option contains an action of type **`build`**, call **Fetch an action** with that `optionId` and the `data` payload to resolve it into one or more executable actions (typically `walletRpc`).
+
+### 3) Confirm a payment
+
+After your wallet executes the required `walletRpc` actions (sign/submit), call **Confirm a payment** with:
+
+- the selected `optionId`
+- `results[]`: the output from each executed action (in the same spirit/order you performed them)
+- optional `collectedData` if the options response requested additional user info
+
+## API Reference
+
+For request/response schemas and examples for each Gateway endpoint, see the **[API Reference](/api-reference)**.
+
+
