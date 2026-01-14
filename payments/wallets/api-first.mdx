@@ -21,7 +21,63 @@ This flow is centered around **three Gateway calls**:
   - `Sdk-Version`
   - `Sdk-Platform`
 
-## High-level flow
+## Payment flow
+
+The payment flow mirrors the SDK flow, but you call the Gateway API directly:
+
+**Get Options → (Fetch Actions) → Execute Wallet RPC → (Collect Data) → Confirm Payment**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant Gateway as WalletConnect Pay (Gateway API)
+    participant Chain as Wallet RPC / Chain
+
+    User->>Wallet: Scan QR / Open payment link
+    Wallet->>Gateway: POST /v1/gateway/payment/{id}/options (accounts)
+    Gateway-->>Wallet: options[] (+ optional info/collectData)
+    Wallet->>User: Display payment options
+
+    User->>Wallet: Select payment option
+
+    alt Option includes a build action
+        Wallet->>Gateway: POST /v1/gateway/payment/{id}/fetch (optionId, data)
+        Gateway-->>Wallet: actions[] (walletRpc)
+    end
+
+    Wallet->>User: Request signature(s) / transaction(s)
+    User->>Wallet: Approve
+    Wallet->>Chain: Execute wallet RPC actions (in order)
+    Chain-->>Wallet: Results (e.g., signature(s) / tx hash(es))
+
+    alt Data collection required
+        Wallet->>User: Request additional info
+        User->>Wallet: Provide data
+    end
+
+    Wallet->>Gateway: POST /v1/gateway/payment/{id}/confirm (optionId, results, collectedData?)
+    Gateway-->>Wallet: status + isFinal (+ pollInMs)
+    Wallet->>User: Show result / status
+```
+
+## Understanding `actions`
+
+Payment options can include an `actions[]` array. Each action tells your wallet what needs to happen next.
+
+- **`walletRpc` actions**
+  - The Gateway gives you a wallet RPC payload (`chain_id`, `method`, `params`)
+  - Your wallet should execute it (sign / send), then record the output to submit in `results[]`
+
+- **`build` actions**
+  - The action is not directly executable by the wallet
+  - Call **Fetch an action** to convert the `build` payload into one or more **`walletRpc`** actions
+
+<Warning>
+Maintain action ordering. The `results[]` you submit in **Confirm a payment** must correspond to the actions you executed, in order.
+</Warning>
+
+## High-level steps
 
 ### 1) Get payment options
 
@@ -43,6 +99,10 @@ After your wallet executes the required `walletRpc` actions (sign/submit), call 
 - the selected `optionId`
 - `results[]`: the output from each executed action (in the same spirit/order you performed them)
 - optional `collectedData` if the options response requested additional user info
+
+<Note>
+If `isFinal` is `false`, the response may include `pollInMs`. Use it to decide when to check again (see the API Reference for status/polling behavior).
+</Note>
 
 ## API Reference
 
