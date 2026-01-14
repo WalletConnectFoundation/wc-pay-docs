@@ -1,0 +1,111 @@
+---
+title: "API-first integration (Non-SDK wallets)"
+sidebarTitle: "API-first (No SDK)"
+description: "Integrate WalletConnect Pay in a wallet without an SDK, using the Gateway API."
+---
+
+If you’re integrating WalletConnect Pay into a wallet **without using the Wallet Pay SDK**, you can use an API-first approach via the **Gateway API**.
+
+This flow is centered around **three Gateway calls**:
+
+- **Get payment options**: list options the user can complete with their wallet/accounts
+- **Fetch an action**: resolve “build” actions into wallet RPC actions when needed
+- **Confirm a payment**: submit the selected option and the executed action results
+
+## Prerequisites
+
+- **API key**: request access from WalletConnect
+  - You can do this by filling out [**this form**](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
+- **Wallet identity headers** (required on each request):
+  - `Sdk-Name`
+  - `Sdk-Version`
+  - `Sdk-Platform`
+
+## Payment flow
+
+The payment flow mirrors the SDK flow, but you call the Gateway API directly:
+
+**Get Options → (Fetch Actions) → Execute Wallet RPC → (Collect Data) → Confirm Payment**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant Gateway as WalletConnect Pay (Gateway API)
+    participant Chain as Wallet RPC / Chain
+
+    User->>Wallet: Scan QR / Open payment link
+    Wallet->>Gateway: POST /v1/gateway/payment/{id}/options (accounts)
+    Gateway-->>Wallet: options[] (+ optional info/collectData)
+    Wallet->>User: Display payment options
+
+    User->>Wallet: Select payment option
+
+    alt Option includes a build action
+        Wallet->>Gateway: POST /v1/gateway/payment/{id}/fetch (optionId, data)
+        Gateway-->>Wallet: actions[] (walletRpc)
+    end
+
+    Wallet->>User: Request signature(s) / transaction(s)
+    User->>Wallet: Approve
+    Wallet->>Chain: Execute wallet RPC actions (in order)
+    Chain-->>Wallet: Results (e.g., signature(s) / tx hash(es))
+
+    alt Data collection required
+        Wallet->>User: Request additional info
+        User->>Wallet: Provide data
+    end
+
+    Wallet->>Gateway: POST /v1/gateway/payment/{id}/confirm (optionId, results, collectedData?)
+    Gateway-->>Wallet: status + isFinal (+ pollInMs)
+    Wallet->>User: Show result / status
+```
+
+## Understanding `actions`
+
+Payment options can include an `actions[]` array. Each action tells your wallet what needs to happen next.
+
+- **`walletRpc` actions**
+  - The Gateway gives you a wallet RPC payload (`chain_id`, `method`, `params`)
+  - Your wallet should execute it (sign / send), then record the output to submit in `results[]`
+
+- **`build` actions**
+  - The action is not directly executable by the wallet
+  - Call **Fetch an action** to convert the `build` payload into one or more **`walletRpc`** actions
+
+<Warning>
+Maintain action ordering. The `results[]` you submit in **Confirm a payment** must correspond to the actions you executed, in order.
+</Warning>
+
+## High-level steps
+
+### 1) Get payment options
+
+Call **Get payment options** for the given `paymentId`, passing a list of accounts (CAIP-10 / chain namespace format as provided by your wallet).
+
+- Use this response to render:
+  - payment details (optionally, if `includePaymentInfo=true`)
+  - available `options[]` the user can pick from
+  - required `actions[]` for the chosen option
+
+### 2) Fetch an action (only if required)
+
+If an option contains an action of type **`build`**, call **Fetch an action** with that `optionId` and the `data` payload to resolve it into one or more executable actions (typically `walletRpc`).
+
+### 3) Confirm a payment
+
+After your wallet executes the required `walletRpc` actions (sign/submit), call **Confirm a payment** with:
+
+- the selected `optionId`
+- `results[]`: the output from each executed action (in the same spirit/order you performed them)
+- optional `collectedData` if the options response requested additional user info
+
+<Note>
+If `isFinal` is `false`, the response may include `pollInMs`. Use it to decide when to check again (see the API Reference for status/polling behavior).
+</Note>
+
+## API Reference
+
+For request/response schemas and examples for each Gateway endpoint, see the **[API Reference](/api-reference)**.
+
+

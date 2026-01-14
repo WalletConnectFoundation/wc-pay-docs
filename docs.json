@@ -18,6 +18,7 @@
       "apiHost": "https://pineapple.walletconnect.com"
     }
   },
+  "openapi": "api/walletconnect-pay-gateway.yaml",
   "favicon": "/favicon.ico",
   "navigation": {
     "tabs": [
@@ -45,19 +46,35 @@
               "payments/merchant/onboarding"
             ]
           },
-                    {
-                      "group": "WalletConnect Pay for Wallets",
-                      "pages": [
-                        "payments/wallets/overview",
-                        "payments/wallets/swift",
-                        "payments/wallets/kotlin",
-                        "payments/wallets/react-native"
-                      ]
-                    },
+          {
+            "group": "WalletConnect Pay for Wallets",
+            "pages": [
+              "payments/wallets/overview",
+              "payments/wallets/kotlin",
+              "payments/wallets/swift",
+              "payments/wallets/react-native",
+              "payments/wallets/api-first"
+            ]
+          },
           {
             "group": "Ecommerce and Online Checkout",
             "pages": [
               "payments/ecommerce/overview"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "Gateway",
+            "pages": [
+              "api-reference/index",
+              "api-reference/gateway/get-payment-options",
+              "api-reference/gateway/fetch-action",
+              "api-reference/gateway/confirm-payment"
             ]
           }
         ]
