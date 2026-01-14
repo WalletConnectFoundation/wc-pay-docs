@@ -1,0 +1,533 @@
+---
+title: "WalletConnect Pay SDK - Swift Installation"
+description: "Integrate WalletConnect Pay into your iOS wallet to enable seamless crypto payments for your users."
+sidebarTitle: "Swift"
+---
+
+The WalletConnect Pay SDK allows wallet users to pay merchants using their crypto assets. The SDK handles payment option discovery, permit signing coordination, and payment confirmation while leveraging your wallet's existing signing infrastructure.
+
+## Requirements
+
+- iOS 13.0+
+- Swift 5.7+
+- Xcode 14.0+
+
+## Installation
+
+### Swift Package Manager
+
+Add WalletConnectPay to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/reown-com/reown-swift", from: "2.0.0")
+]
+```
+
+Then add `WalletConnectPay` to your target dependencies:
+
+```swift
+.target(
+    name: "YourApp",
+    dependencies: ["WalletConnectPay"]
+)
+```
+
+<Info>
+The version shown above may not be the latest. Check the [GitHub releases](https://github.com/reown-com/reown-swift/releases) for the most recent version.
+</Info>
+
+## Configuration
+
+Configure the Pay client during app initialization, typically in your `AppDelegate` or `SceneDelegate`:
+
+```swift
+import WalletConnectPay
+
+func application(_ application: UIApplication, didFinishLaunchingWithOptions...) {
+    WalletConnectPay.configure(
+        projectId: "your-walletconnect-project-id",
+        apiKey: "your-pay-api-key",
+        logging: true  // Enable for debugging
+    )
+}
+```
+
+### Configuration Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `projectId` | `String` | Yes | Your WalletConnect Cloud project ID |
+| `apiKey` | `String` | Yes | Your WalletConnect Pay API key |
+| `baseUrl` | `String` | No | Custom API URL (defaults to production) |
+| `logging` | `Bool` | No | Enable debug logging (default: `false`) |
+
+<Info>
+Don't have a project ID? Create one at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) by signing up and creating a new project.
+</Info>
+
+## Supported Networks
+
+WalletConnect Pay currently supports the following networks with USDC:
+
+| Network | Chain ID | CAIP-10 Format |
+|---------|----------|----------------|
+| Ethereum | 1 | `eip155:1:{address}` |
+| Base | 8453 | `eip155:8453:{address}` |
+| Optimism | 10 | `eip155:10:{address}` |
+| Polygon | 137 | `eip155:137:{address}` |
+| Arbitrum | 42161 | `eip155:42161:{address}` |
+
+<Note>
+Support for all EVM chains, Solana, and additional native and non-native assets is coming soon. Include accounts for all supported networks to maximize payment options for your users.
+</Note>
+
+## Payment Flow
+
+The payment flow consists of four main steps:
+
+**Get Options → Get Actions → Sign Permit → Confirm Payment**
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Wallet
+    participant PaySDK as Pay SDK
+    participant Backend as WalletConnect Pay
+
+    User->>Wallet: Scan QR / Open payment link
+    Wallet->>PaySDK: getPaymentOptions(link, accounts)
+    PaySDK->>Backend: Fetch payment options
+    Backend-->>PaySDK: Payment options + merchant info
+    PaySDK-->>Wallet: PaymentOptionsResponse
+    Wallet->>User: Display payment options
+    
+    User->>Wallet: Select payment option
+    Wallet->>PaySDK: getRequiredPaymentActions(paymentId, optionId)
+    PaySDK->>Backend: Get signing actions
+    Backend-->>PaySDK: Required wallet RPC actions
+    PaySDK-->>Wallet: List of actions to sign
+    
+    Wallet->>User: Request signature(s)
+    User->>Wallet: Approve & sign
+    
+    alt Data collection required
+        Wallet->>User: Request additional info
+        User->>Wallet: Provide data
+    end
+    
+    Wallet->>PaySDK: confirmPayment(signatures, collectedData)
+    PaySDK->>Backend: Submit payment
+    Backend-->>PaySDK: Payment status
+    PaySDK-->>Wallet: ConfirmPaymentResponse
+    Wallet->>User: Show result
+```
+
+<Steps>
+
+<Step title="Get Payment Options" titleSize="h3">
+
+When a user scans a payment QR code or opens a payment link, fetch available payment options:
+
+```swift
+let paymentLink = "https://pay.walletconnect.com/?pid=pay_abc123..."
+
+// Provide all user's EVM accounts in CAIP-10 format
+let accounts = [
+    "eip155:1:\(walletAddress)",      // Ethereum Mainnet
+    "eip155:137:\(walletAddress)",    // Polygon
+    "eip155:8453:\(walletAddress)",   // Base
+    "eip155:42161:\(walletAddress)"   // Arbitrum
+]
+
+do {
+    let response = try await WalletConnectPay.instance.getPaymentOptions(
+        paymentLink: paymentLink,
+        accounts: accounts
+    )
+    
+    // Display merchant info
+    if let info = response.info {
+        print("Merchant: \(info.merchant.name)")
+        print("Amount: \(info.amount.display.assetSymbol) \(info.amount.value)")
+    }
+    
+    // Show available payment options to user
+    for option in response.options {
+        print("Pay with \(option.amount.display.assetSymbol) on \(option.amount.display.networkName ?? "Unknown")")
+    }
+    
+    // Check if user data collection is required (travel rule)
+    if let collectData = response.collectData {
+        // Show UI to collect required user information
+        for field in collectData.fields {
+            print("Required field: \(field.name) (type: \(field.fieldType))")
+        }
+    }
+    
+} catch {
+    print("Failed to get payment options: \(error)")
+}
+```
+
+</Step>
+
+<Step title="Get Required Actions" titleSize="h3">
+
+After the user selects a payment option, get the signing actions:
+
+```swift
+let actions = try await WalletConnectPay.instance.getRequiredPaymentActions(
+    paymentId: response.paymentId,
+    optionId: selectedOption.id
+)
+```
+
+</Step>
+
+<Step title="Sign the Permit" titleSize="h3">
+
+Each action contains a `walletRpc` with EIP-712 typed data that needs to be signed. The method is `eth_signTypedData_v4`.
+
+```swift
+var signatures: [String] = []
+
+for action in actions {
+    let rpc = action.walletRpc
+    
+    // rpc.chainId - The chain to sign on (e.g., "eip155:8453")
+    // rpc.method  - "eth_signTypedData_v4"  
+    // rpc.params  - JSON string: ["address", "{...typed data...}"]
+    
+    // Parse the params to extract typed data
+    let paramsData = rpc.params.data(using: .utf8)!
+    let params = try JSONSerialization.jsonObject(with: paramsData) as! [Any]
+    let typedDataJson = params[1] as! String
+    
+    // Sign using your wallet's existing EIP-712 signing implementation
+    let signature = try await yourWallet.signTypedData(
+        typedData: typedDataJson,
+        address: walletAddress,
+        chainId: rpc.chainId
+    )
+    
+    signatures.append(signature)
+}
+```
+
+<Warning>
+Signatures must be in the same order as the actions array.
+</Warning>
+
+</Step>
+
+<Step title="Collect User Data (If Required)" titleSize="h3">
+
+If `response.collectData` is not nil, you must collect user information before confirming:
+
+```swift
+var collectedData: [CollectDataFieldResult]? = nil
+
+if let collectDataAction = response.collectData {
+    collectedData = []
+    
+    for field in collectDataAction.fields {
+        // Show appropriate UI based on field.fieldType
+        let value: String
+        
+        switch field.fieldType {
+        case .text:
+            // Show text input for name fields
+            value = userInputtedValue
+        case .date:
+            // Show date picker for date of birth
+            // Format: "YYYY-MM-DD"
+            value = "1990-01-15"
+        }
+        
+        collectedData?.append(CollectDataFieldResult(
+            id: field.id,
+            value: value
+        ))
+    }
+}
+```
+
+</Step>
+
+<Step title="Confirm Payment" titleSize="h3">
+
+Submit the signatures and collected data to complete the payment:
+
+```swift
+let result = try await WalletConnectPay.instance.confirmPayment(
+    paymentId: response.paymentId,
+    optionId: selectedOption.id,
+    signatures: signatures,
+    collectedData: collectedData,
+    maxPollMs: 60000  // Wait up to 60 seconds for confirmation
+)
+
+switch result.status {
+case .succeeded:
+    print("Payment successful!")
+case .processing:
+    print("Payment is being processed...")
+case .failed:
+    print("Payment failed")
+case .expired:
+    print("Payment expired")
+case .requiresAction:
+    print("Additional action required")
+}
+```
+
+</Step>
+
+</Steps>
+
+## Complete Example
+
+Here's a complete implementation example:
+
+```swift
+import WalletConnectPay
+
+class PaymentManager {
+    
+    func processPayment(
+        paymentLink: String,
+        walletAddress: String,
+        signer: YourSignerProtocol
+    ) async throws {
+        
+        // 1. Get payment options
+        let accounts = [
+            "eip155:1:\(walletAddress)",
+            "eip155:137:\(walletAddress)",
+            "eip155:8453:\(walletAddress)"
+        ]
+        
+        let optionsResponse = try await WalletConnectPay.instance.getPaymentOptions(
+            paymentLink: paymentLink,
+            accounts: accounts
+        )
+        
+        guard !optionsResponse.options.isEmpty else {
+            throw PaymentError.noOptionsAvailable
+        }
+        
+        // 2. Let user select an option (simplified - use first option)
+        let selectedOption = optionsResponse.options[0]
+        
+        // 3. Get required actions
+        let actions = try await WalletConnectPay.instance.getRequiredPaymentActions(
+            paymentId: optionsResponse.paymentId,
+            optionId: selectedOption.id
+        )
+        
+        // 4. Sign all actions
+        var signatures: [String] = []
+        for action in actions {
+            let signature = try await signTypedData(
+                action: action,
+                walletAddress: walletAddress,
+                signer: signer
+            )
+            signatures.append(signature)
+        }
+        
+        // 5. Collect user data if required
+        var collectedData: [CollectDataFieldResult]? = nil
+        if let collectData = optionsResponse.collectData {
+            collectedData = try await collectUserData(fields: collectData.fields)
+        }
+        
+        // 6. Confirm payment
+        let result = try await WalletConnectPay.instance.confirmPayment(
+            paymentId: optionsResponse.paymentId,
+            optionId: selectedOption.id,
+            signatures: signatures,
+            collectedData: collectedData
+        )
+        
+        guard result.status == .succeeded else {
+            throw PaymentError.paymentFailed(result.status)
+        }
+    }
+    
+    private func signTypedData(
+        action: Action,
+        walletAddress: String,
+        signer: YourSignerProtocol
+    ) async throws -> String {
+        let rpc = action.walletRpc
+        
+        // Parse params: ["address", "typedDataJson"]
+        guard let paramsData = rpc.params.data(using: .utf8),
+              let params = try JSONSerialization.jsonObject(with: paramsData) as? [Any],
+              params.count >= 2,
+              let typedDataJson = params[1] as? String else {
+            throw PaymentError.invalidParams
+        }
+        
+        // Use your wallet's signing implementation
+        return try await signer.signTypedData(
+            data: typedDataJson,
+            address: walletAddress
+        )
+    }
+    
+    private func collectUserData(
+        fields: [CollectDataField]
+    ) async throws -> [CollectDataFieldResult] {
+        // Implement your UI to collect user data
+        // This is typically done via a form/modal
+        return fields.map { field in
+            CollectDataFieldResult(
+                id: field.id,
+                value: getUserInput(for: field)
+            )
+        }
+    }
+}
+```
+
+## Deep Link Handling
+
+To handle payment links opened from outside your app:
+
+```swift
+// In SceneDelegate or AppDelegate
+func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let url = URLContexts.first?.url else { return }
+    
+    if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+       components.queryItems?.contains(where: { $0.name == "pid" }) == true {
+        // This is a WalletConnect Pay link
+        let paymentLink = url.absoluteString
+        startPaymentFlow(paymentLink: paymentLink)
+    }
+}
+```
+
+## QR Code Scanning
+
+Payment links can be encoded as QR codes. Detect Pay QR codes by checking for the `pid` query parameter:
+
+```swift
+func handleScannedQR(_ content: String) {
+    guard let url = URL(string: content),
+          let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+        return
+    }
+    
+    if components.queryItems?.contains(where: { $0.name == "pid" }) == true {
+        // WalletConnect Pay QR code
+        startPaymentFlow(paymentLink: content)
+    }
+}
+```
+
+## Error Handling
+
+The SDK throws specific error types for different failure scenarios:
+
+### GetPaymentOptionsError
+
+| Error | Description |
+|-------|-------------|
+| `.paymentNotFound` | Payment ID doesn't exist |
+| `.paymentExpired` | Payment has expired |
+| `.invalidRequest` | Invalid request parameters |
+| `.invalidAccount` | Invalid account format |
+| `.complianceFailed` | Compliance check failed |
+| `.http` | Network error |
+| `.internalError` | Server error |
+
+### GetPaymentRequestError
+
+| Error | Description |
+|-------|-------------|
+| `.optionNotFound` | Selected option doesn't exist |
+| `.paymentNotFound` | Payment ID doesn't exist |
+| `.invalidAccount` | Invalid account format |
+| `.http` | Network error |
+
+### ConfirmPaymentError
+
+| Error | Description |
+|-------|-------------|
+| `.paymentNotFound` | Payment ID doesn't exist |
+| `.paymentExpired` | Payment has expired |
+| `.invalidOption` | Invalid option ID |
+| `.invalidSignature` | Signature verification failed |
+| `.routeExpired` | Payment route expired |
+| `.http` | Network error |
+
+## API Reference
+
+### WalletConnectPay
+
+Static configuration class for the Pay SDK.
+
+| Method | Description |
+|--------|-------------|
+| `configure(projectId:apiKey:baseUrl:logging:)` | Initialize the SDK with your credentials |
+| `instance` | Access the shared `PayClient` instance |
+
+### PayClient
+
+Main client for payment operations.
+
+| Method | Description |
+|--------|-------------|
+| `getPaymentOptions(paymentLink:accounts:includePaymentInfo:)` | Fetch available payment options |
+| `getRequiredPaymentActions(paymentId:optionId:)` | Get signing actions for a payment option |
+| `confirmPayment(paymentId:optionId:signatures:collectedData:maxPollMs:)` | Confirm and execute the payment |
+
+### Data Types
+
+#### PaymentOptionsResponse
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `paymentId` | `String` | Unique payment identifier |
+| `info` | `PaymentInfo?` | Merchant and amount details |
+| `options` | `[PaymentOption]` | Available payment methods |
+| `collectData` | `CollectDataAction?` | Required user data fields (travel rule) |
+
+#### PaymentOption
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `String` | Option identifier |
+| `amount` | `PayAmount` | Amount in this asset |
+| `etaS` | `Int64` | Estimated time to complete (seconds) |
+| `actions` | `[Action]` | Required signing actions |
+
+#### PaymentStatus
+
+| Status | Description |
+|--------|-------------|
+| `.requiresAction` | Additional action needed |
+| `.processing` | Payment in progress |
+| `.succeeded` | Payment completed |
+| `.failed` | Payment failed |
+| `.expired` | Payment expired |
+
+## Best Practices
+
+1. **Account Format**: Always use CAIP-10 format for accounts: `eip155:{chainId}:{address}`
+
+2. **Multiple Chains**: Provide accounts for all supported chains to maximize payment options
+
+3. **Signature Order**: Maintain the same order of signatures as the actions array
+
+4. **Error Handling**: Always handle errors gracefully and show appropriate user feedback
+
+5. **Loading States**: Show loading indicators during API calls and signing operations
+
+6. **Expiration**: Check `paymentInfo.expiresAt` and warn users if time is running low
+
+7. **User Data**: Only collect data when `collectData` is present in the response
