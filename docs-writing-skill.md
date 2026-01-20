@@ -1,23 +1,23 @@
 ---
-name: documentation-writing
+name: walletconnect-pay-docs-writing
 description: Write and review documentation for WalletConnect products using Mintlify. Use when writing docs, creating SDK guides, writing overview pages, reviewing documentation, or when the user mentions docs, documentation, Mintlify, or technical writing.
 ---
 
-# WalletConnect Documentation Writing Skill
+# WalletConnect Pay Documentation Writing Skill
 
-This skill guide defines how to write documentation for WalletConnect products using Mintlify. Follow these guidelines to maintain consistency across all documentation.
+This skill guide defines how to write documentation for WalletConnect Pay products using Mintlify. Follow these guidelines to maintain consistency across all documentation.
 
 ## Voice and Tone
 
 ### Brand Attribution
-- **Always use "WalletConnect"** as the subject when describing capabilities, offerings, or actions.
+- **Always use "WalletConnect Pay"** as the subject when describing capabilities, offerings, or actions.
 - **Never use** first-person pronouns like "we", "our", "us", or "my team" when referring to WalletConnect.
 
 | ❌ Incorrect | ✅ Correct |
 |-------------|-----------|
 | We provide this SDK | WalletConnect provides this SDK |
 | Our team built this feature | WalletConnect built this feature |
-| The SDK provided by us | The SDK provided by WalletConnect |
+| The SDK provided by us | The SDK provided by WalletConnect Pay |
 | We recommend using... | WalletConnect recommends using... |
 
 ### Writing Style
