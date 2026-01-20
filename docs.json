@@ -46,16 +46,31 @@
               "payments/merchant/onboarding"
             ]
           },
-          {
-            "group": "WalletConnect Pay for Wallets",
-            "pages": [
-              "payments/wallets/overview",
-              "payments/wallets/kotlin",
-              "payments/wallets/swift",
-              "payments/wallets/react-native",
-              "payments/wallets/api-first"
-            ]
-          },
+                    {
+                      "group": "WalletConnect Pay for Wallets",
+                      "pages": [
+                        "payments/wallets/overview",
+                        {
+                          "group": "Standalone integration",
+                          "pages": [
+                            "payments/wallets/standalone/kotlin",
+                            "payments/wallets/standalone/swift",
+                            "payments/wallets/standalone/react-native",
+                            "payments/wallets/standalone/flutter"
+                          ]
+                        },
+                        {
+                          "group": "Integrate using the Wallet SDK",
+                          "pages": [
+                            "payments/wallets/walletkit/kotlin",
+                            "payments/wallets/walletkit/swift",
+                            "payments/wallets/walletkit/flutter",
+                            "payments/wallets/walletkit/web"
+                          ]
+                        },
+                        "payments/wallets/api-first"
+                      ]
+                    },
           {
             "group": "Ecommerce and Online Checkout",
             "pages": [

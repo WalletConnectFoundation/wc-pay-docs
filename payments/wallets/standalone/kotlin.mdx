@@ -1,12 +1,8 @@
 ---
-title: "WalletConnect Pay SDK - Kotlin Installation"
+title: "WalletConnect Pay SDK - Kotlin"
 description: "Integrate WalletConnect Pay into your Android wallet to enable seamless crypto payments for your users."
 sidebarTitle: "Kotlin"
 ---
-
-<Note>
-**WalletConnect Pay will soon be bundled into the existing [Wallet SDK](https://docs.walletconnect.network/wallet-sdk/overview)**. If your wallet already uses the WalletConnect SDK, it is recommended to wait for the upcoming release and upgrade your SDK to enable WalletConnect Pay, rather than integrating the standalone WalletConnect Pay SDK below.
-</Note>
 
 The WalletConnect Pay SDK is a Kotlin library that enables payment functionality for Android wallet applications. This SDK provides a seamless payment solution through a native provider architecture powered by Yttrium (Rust FFI).
 
@@ -15,8 +11,6 @@ The WalletConnect Pay SDK is a Kotlin library that enables payment functionality
 - **Min SDK**: 23 (Android 6.0)
 - **Target SDK**: 36
 - **JVM Target**: 11
-
-As a wallet provider, you would first need to **obtain an API key from WalletConnect**. You can do this by filling out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
 
 ## Installation
 
@@ -32,6 +26,17 @@ dependencies {
 The version shown above may not be the latest. Check the [GitHub releases](https://github.com/reown-com/reown-kotlin/releases) for the most recent version.
 </Info>
 
+### JNA Dependency Configuration
+
+If you encounter JNA-related errors (e.g., `UnsatisfiedLinkError` or class loading issues), explicitly configure the JNA dependency:
+
+```kotlin
+implementation("com.walletconnect:pay:1.0.0") {
+    exclude(group = "net.java.dev.jna", module = "jna")
+}
+implementation("net.java.dev.jna:jna:5.17.0@aar")
+```
+
 ## Configuration
 
 Initialize the SDK in your `Application` class or before any payment operations:
@@ -42,27 +47,21 @@ import com.walletconnect.pay.WalletConnectPay
 
 WalletConnectPay.initialize(
     Pay.SdkConfig(
-        apiKey = "your-api-key",
-        projectId = "your-project-id",
-        packageName = "com.your.app"
+        appId = "your-project-id",      // Your WalletConnect Project ID
+        packageName = "com.your.app"    // Your app's package name
     )
 )
 ```
-
-<Info>
-Don't have an API key? Fill out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and get in touch with our team to obtain an API key.
-</Info>
 
 ### Configuration Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `apiKey` | `String` | Yes | Your WalletConnect Pay API key |
-| `projectId` | `String` | Yes | Your WalletConnect Cloud project ID |
+| `appId` | `String` | Yes | Your WalletConnect Project ID |
 | `packageName` | `String` | Yes | Your application's package name |
 
 <Info>
-Don't have a project ID? Create one at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) by signing up and creating a new project.
+Don't have a project ID? Create one at the [WalletConnect Dashboard](https://cloud.reown.com) by signing up and creating a new project.
 </Info>
 
 <Warning>
@@ -71,15 +70,17 @@ The SDK will throw `IllegalStateException` if already initialized. Call `initial
 
 ## Supported Networks
 
-WalletConnect Pay currently supports the following networks with USDC:
+WalletConnect Pay currently supports USDC payments on the following networks:
 
-| Network | Chain ID | CAIP-10 Format |
-|---------|----------|----------------|
-| Ethereum | 1 | `eip155:1:{address}` |
-| Base | 8453 | `eip155:8453:{address}` |
-| Optimism | 10 | `eip155:10:{address}` |
-| Polygon | 137 | `eip155:137:{address}` |
-| Arbitrum | 42161 | `eip155:42161:{address}` |
+| Network | Chain ID | CAIP-2 Format |
+|---------|----------|---------------|
+| Ethereum | 1 | `eip155:1` |
+| Base | 8453 | `eip155:8453` |
+| Optimism | 10 | `eip155:10` |
+| Polygon | 137 | `eip155:137` |
+| Arbitrum | 42161 | `eip155:42161` |
+
+All account addresses must be provided in CAIP-10 format: `eip155:<chainId>:<address>`
 
 <Note>
 Support for all EVM chains, Solana, and additional native and non-native assets is coming soon. Include accounts for all supported networks to maximize payment options for your users.
@@ -89,7 +90,7 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
 
 The payment flow consists of five main steps:
 
-**Get Options → Get Actions → Sign Actions → Collect Data → Confirm Payment**
+**Get Options -> Get Actions -> Sign Actions -> Collect Data (if required) -> Confirm Payment**
 
 ```mermaid
 sequenceDiagram
@@ -128,39 +129,60 @@ sequenceDiagram
 
 <Steps>
 
+<Step title="Initialize the SDK" titleSize="h3">
+
+```kotlin
+import com.walletconnect.pay.Pay
+import com.walletconnect.pay.WalletConnectPay
+
+// In your Application class or before payment operations
+WalletConnectPay.initialize(
+    Pay.SdkConfig(
+        appId = "your-project-id",
+        packageName = "com.your.app"
+    )
+)
+
+// Check if initialized
+if (WalletConnectPay.isInitialized) {
+    // SDK ready for use
+}
+```
+
+</Step>
+
 <Step title="Get Payment Options" titleSize="h3">
 
 When a user scans a payment QR code or opens a payment link, fetch available payment options:
 
 ```kotlin
 val result = WalletConnectPay.getPaymentOptions(
-    paymentLink = "https://pay.walletconnect.com/pay_123",
+    paymentLink = "https://pay.walletconnect.com/pay_xxx",
     accounts = listOf(
-        "eip155:1:$walletAddress",      // Ethereum Mainnet
-        "eip155:137:$walletAddress",    // Polygon
-        "eip155:8453:$walletAddress",   // Base
-        "eip155:42161:$walletAddress"   // Arbitrum
+        "eip155:1:0xYourAddress",      // Ethereum
+        "eip155:8453:0xYourAddress",   // Base
+        "eip155:10:0xYourAddress"      // Optimism
     )
 )
 
 result.onSuccess { response ->
+    // Payment metadata
     val paymentId = response.paymentId
+    val paymentInfo = response.info  // Merchant info, amount, expiry
+    
+    // Available payment options
     val options = response.options
-    val paymentInfo = response.info
-    val collectDataAction = response.collectDataAction
-    
-    // Display merchant info
-    paymentInfo?.let {
-        println("Merchant: ${it.merchant.name}")
-        println("Amount: ${it.amount.display?.assetSymbol} ${it.amount.value}")
-    }
-    
-    // Show available payment options to user
     options.forEach { option ->
-        println("Pay with ${option.amount.display?.assetSymbol} on ${option.amount.display?.networkName}")
+        println("Option: ${option.id}")
+        println("Amount: ${option.amount.value} ${option.amount.unit}")
+        println("Account: ${option.account}")
+        println("Estimated transactions: ${option.estimatedTxs}")
     }
+    
+    // Check if data collection is required
+    val collectDataAction = response.collectDataAction
 }.onFailure { error ->
-    // Handle error
+    handleError(error)
 }
 ```
 
@@ -188,7 +210,7 @@ actionsResult.onSuccess { actions ->
         }
     }
 }.onFailure { error ->
-    // Handle error
+    handleError(error)
 }
 ```
 
@@ -224,19 +246,16 @@ Signatures must be in the same order as the actions array.
 Some payments require collecting additional user information. Check for `collectDataAction` in the payment options response:
 
 ```kotlin
-result.onSuccess { response ->
-    val collectedData = response.collectDataAction?.let { collectAction ->
-        collectAction.fields.map { field ->
-            // Collect data from user based on field type
-            val value = when (field.fieldType) {
-                Pay.CollectDataFieldType.TEXT -> getUserTextInput(field.name)
-                Pay.CollectDataFieldType.DATE -> getUserDateInput(field.name) // Format: "YYYY-MM-DD"
-            }
-            Pay.CollectDataFieldResult(
-                id = field.id,
-                value = value
-            )
+response.collectDataAction?.let { collectAction ->
+    val collectedData = collectAction.fields.map { field ->
+        val value = when (field.fieldType) {
+            Pay.CollectDataFieldType.TEXT -> getUserTextInput(field.name)
+            Pay.CollectDataFieldType.DATE -> getUserDateInput(field.name) // Format: YYYY-MM-DD
         }
+        Pay.CollectDataFieldResult(
+            id = field.id,
+            value = value
+        )
     }
 }
 ```
@@ -262,7 +281,7 @@ confirmResult.onSuccess { response ->
         }
         Pay.PaymentStatus.PROCESSING -> {
             // Payment is being processed
-            // response.pollInMs indicates when to check again
+            // The SDK automatically polls until final status
         }
         Pay.PaymentStatus.FAILED -> {
             // Payment failed
@@ -271,11 +290,11 @@ confirmResult.onSuccess { response ->
             // Payment expired
         }
         Pay.PaymentStatus.REQUIRES_ACTION -> {
-            // Additional action needed
+            // Additional action required
         }
     }
 }.onFailure { error ->
-    // Handle error
+    handleError(error)
 }
 ```
 
@@ -297,8 +316,7 @@ class PaymentViewModel : ViewModel() {
     fun initializeSdk() {
         WalletConnectPay.initialize(
             Pay.SdkConfig(
-                apiKey = "your-api-key",
-                projectId = "your-project-id",
+                appId = "your-project-id",
                 packageName = "com.your.app"
             )
         )
@@ -311,8 +329,8 @@ class PaymentViewModel : ViewModel() {
                 paymentLink = paymentLink,
                 accounts = listOf(
                     "eip155:1:$walletAddress",
-                    "eip155:137:$walletAddress",
-                    "eip155:8453:$walletAddress"
+                    "eip155:8453:$walletAddress",
+                    "eip155:10:$walletAddress"
                 )
             )
 
@@ -379,6 +397,133 @@ class PaymentViewModel : ViewModel() {
     }
 }
 ```
+
+## Shutdown
+
+Release SDK resources when no longer needed:
+
+```kotlin
+WalletConnectPay.shutdown()
+```
+
+## API Reference
+
+### WalletConnectPay
+
+Main entry point for the Pay SDK (singleton object).
+
+#### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isInitialized` | `Boolean` | Whether the SDK has been initialized |
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `initialize(config: Pay.SdkConfig)` | Initialize the SDK |
+| `getPaymentOptions(paymentLink, accounts)` | Get available payment options |
+| `getRequiredPaymentActions(paymentId, optionId)` | Get actions requiring signatures |
+| `confirmPayment(paymentId, optionId, signatures, collectedData?)` | Confirm and finalize payment |
+| `shutdown()` | Release SDK resources |
+
+## Data Models
+
+### Pay.PaymentOptionsResponse
+
+```kotlin
+data class PaymentOptionsResponse(
+    val info: PaymentInfo?,              // Payment metadata
+    val options: List<PaymentOption>,    // Available payment options
+    val paymentId: String,               // Unique payment identifier
+    val collectDataAction: CollectDataAction?  // Data collection requirements
+)
+```
+
+### Pay.PaymentInfo
+
+```kotlin
+data class PaymentInfo(
+    val status: PaymentStatus,
+    val amount: Amount,
+    val expiresAt: Long,                 // Unix timestamp
+    val merchant: MerchantInfo
+)
+
+data class MerchantInfo(
+    val name: String,
+    val iconUrl: String?
+)
+```
+
+### Pay.PaymentOption
+
+```kotlin
+data class PaymentOption(
+    val id: String,
+    val amount: Amount,
+    val account: String,                 // CAIP-10 account that can pay
+    val estimatedTxs: Int?               // Estimated number of transactions
+)
+```
+
+### Pay.Amount
+
+```kotlin
+data class Amount(
+    val value: String,
+    val unit: String,
+    val display: AmountDisplay?
+)
+
+data class AmountDisplay(
+    val assetSymbol: String,
+    val assetName: String,
+    val decimals: Int,
+    val iconUrl: String?,
+    val networkName: String?,
+    val networkIconUrl: String?
+)
+```
+
+### Pay.WalletRpcAction
+
+```kotlin
+data class WalletRpcAction(
+    val chainId: String,                 // CAIP-2 chain ID (e.g., "eip155:8453")
+    val method: String,                  // RPC method (e.g., "eth_signTypedData_v4")
+    val params: String                   // JSON-encoded parameters
+)
+```
+
+### Pay.RequiredAction
+
+```kotlin
+sealed class RequiredAction {
+    data class WalletRpc(val action: WalletRpcAction) : RequiredAction()
+}
+```
+
+### Pay.ConfirmPaymentResponse
+
+```kotlin
+data class ConfirmPaymentResponse(
+    val status: PaymentStatus,
+    val isFinal: Boolean,
+    val pollInMs: Long?
+)
+```
+
+### Pay.PaymentStatus
+
+| Status | Description |
+|--------|-------------|
+| `REQUIRES_ACTION` | Additional action needed |
+| `PROCESSING` | Payment in progress |
+| `SUCCEEDED` | Payment completed |
+| `FAILED` | Payment failed |
+| `EXPIRED` | Payment expired |
 
 ## Error Handling
 
@@ -448,81 +593,6 @@ result.onFailure { error ->
     }
 }
 ```
-
-## Shutdown
-
-Release SDK resources when no longer needed:
-
-```kotlin
-WalletConnectPay.shutdown()
-```
-
-## API Reference
-
-### WalletConnectPay
-
-Main entry point for the Pay SDK.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `isInitialized` | `Boolean` | Indicates whether the SDK has been initialized |
-
-| Method | Description |
-|--------|-------------|
-| `initialize(config: Pay.SdkConfig)` | Initialize the SDK with your credentials |
-| `getPaymentOptions(paymentLink, accounts)` | Fetch available payment options |
-| `getRequiredPaymentActions(paymentId, optionId)` | Get signing actions for a payment option |
-| `confirmPayment(paymentId, optionId, signatures, collectedData?)` | Confirm and execute the payment |
-| `shutdown()` | Release all SDK resources |
-
-### Data Types
-
-#### PaymentOptionsResponse
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `paymentId` | `String` | Unique payment identifier |
-| `info` | `PaymentInfo?` | Merchant and amount details |
-| `options` | `List<PaymentOption>` | Available payment methods |
-| `collectDataAction` | `CollectDataAction?` | Required user data fields |
-
-#### PaymentOption
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `id` | `String` | Option identifier |
-| `amount` | `Amount` | Amount in this asset |
-| `estimatedTxs` | `Int?` | Estimated number of transactions |
-
-#### PaymentStatus
-
-| Status | Description |
-|--------|-------------|
-| `REQUIRES_ACTION` | Additional action needed |
-| `PROCESSING` | Payment in progress |
-| `SUCCEEDED` | Payment completed |
-| `FAILED` | Payment failed |
-| `EXPIRED` | Payment expired |
-
-## Troubleshooting
-
-### JNA Dependency Conflicts
-
-If you encounter JNA-related errors (e.g., `UnsatisfiedLinkError` or class loading issues), you may need to explicitly configure the JNA dependency:
-
-```kotlin
-// build.gradle.kts
-implementation("com.walletconnect:pay:1.0.0") {
-    exclude(group = "net.java.dev.jna", module = "jna")
-}
-implementation("net.java.dev.jna:jna:5.17.0@aar")
-```
-
-This ensures the correct Android-specific JNA variant is used.
-
-### ProGuard Rules
-
-If you're using ProGuard or R8, the SDK's consumer ProGuard rules are automatically included. No additional configuration is required.
 
 ## Best Practices
 

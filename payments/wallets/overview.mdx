@@ -5,31 +5,89 @@ sidebarTitle: "Wallet Integration"
 
 Wallets can make their app fully compatible with WalletConnect Pay to deliver a truly native payment experience. Users pay with crypto in real world scenarios with minimal friction while the wallet retains custody and full control over the user experience.
 
-In order to facilitate this, WalletConnect provides an SDK that allows wallets to achieve this, called the **Wallet Pay SDK**.
+WalletConnect provides two integration approaches for enabling WalletConnect Pay in your wallet:
 
-<Note>
-**WalletConnect Pay will soon be bundled into the existing [Wallet SDK](https://docs.walletconnect.network/wallet-sdk/overview)**. If your wallet already uses the WalletConnect SDK, it is recommended to wait for the upcoming release and upgrade your SDK to enable WalletConnect Pay, rather than integrating the standalone WalletConnect Pay SDK below.
-</Note>
+## Integration Options
 
-For wallets that don't currently use the WalletConnect SDK, you can proceed with the standalone Pay SDK integration below or use the [API-first approach](/payments/wallets/api-first).
+### Integrate using the Wallet SDK (Recommended)
 
-## Get Started
-
-As a wallet provider, you would first need to **obtain an API key from WalletConnect**. You can do this by filling out [**this form**](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
-
-**Once you have obtained an API key**, you can integrate the Wallet Pay SDK into your wallet. The SDK is available for Kotlin, Swift, and React Native.
+If your wallet already uses the WalletConnect Wallet SDK (WalletKit), WalletConnect Pay is automatically available when you initialize WalletKit. This is the recommended approach as it provides a unified API and automatic configuration.
 
 <CardGroup cols={2}>
-  <Card title="Pay SDK for Kotlin" icon="android" href="/payments/wallets/kotlin">
-    Integrate WalletConnect Pay into your wallet using the Kotlin SDK.
+  <Card title="Kotlin" icon="android" href="/payments/wallets/walletkit/kotlin">
+    WalletKit integration for Android wallets.
   </Card>
-  <Card title="Pay SDK for Swift" icon="apple" href="/payments/wallets/swift">
-    Integrate WalletConnect Pay into your wallet using the Swift SDK.
+  <Card title="Swift" icon="apple" href="/payments/wallets/walletkit/swift">
+    WalletKit integration for iOS wallets.
   </Card>
-  <Card title="Pay SDK for React Native" icon="mobile" href="/payments/wallets/react-native">
-    Integrate WalletConnect Pay into your wallet using the TypeScript SDK.
+  <Card title="Flutter" icon="mobile" href="/payments/wallets/walletkit/flutter">
+    WalletKit integration for Flutter wallets.
   </Card>
-  <Card title="API-first integration" icon="code" href="/payments/wallets/api-first">
-    Integrate WalletConnect Pay in a wallet without an SDK, using the Gateway API.
+  <Card title="JavaScript / Web" icon="globe" href="/payments/wallets/walletkit/web">
+    WalletKit integration for web wallets.
   </Card>
 </CardGroup>
+
+### Standalone Integration
+
+For wallets that don't currently use the WalletConnect Wallet SDK, you can integrate the standalone Pay SDK directly. This approach requires configuring the SDK with your WalletConnect Project ID.
+
+<CardGroup cols={2}>
+  <Card title="Kotlin" icon="android" href="/payments/wallets/standalone/kotlin">
+    Standalone Pay SDK for Android wallets.
+  </Card>
+  <Card title="Swift" icon="apple" href="/payments/wallets/standalone/swift">
+    Standalone Pay SDK for iOS wallets.
+  </Card>
+  <Card title="React Native" icon="mobile" href="/payments/wallets/standalone/react-native">
+    Standalone Pay SDK for React Native wallets.
+  </Card>
+  <Card title="Flutter" icon="mobile" href="/payments/wallets/standalone/flutter">
+    Standalone Pay SDK for Flutter wallets.
+  </Card>
+</CardGroup>
+
+### API-First Integration
+
+For wallets that prefer direct API integration without using an SDK, you can use the Gateway API directly.
+
+<Card title="API-first integration" icon="code" href="/payments/wallets/api-first">
+  Integrate WalletConnect Pay using the Gateway API.
+</Card>
+
+## Getting Started
+
+To get started with WalletConnect Pay integration:
+
+1. **Get a Project ID**: Create a project at the [WalletConnect Dashboard](https://cloud.reown.com) to obtain your Project ID.
+
+2. **Choose your integration approach**: Select either the WalletKit integration (if you already use WalletKit) or the standalone Pay SDK integration.
+
+3. **Follow the platform-specific guide**: Use the documentation for your platform to implement the payment flow.
+
+## Payment Flow Overview
+
+Regardless of which integration approach you choose, the payment flow follows the same pattern:
+
+1. **Detect Payment Link**: Identify when a user scans or opens a WalletConnect Pay link
+2. **Get Payment Options**: Fetch available payment options based on user's accounts
+3. **Get Required Actions**: Retrieve the signing actions for the selected payment option
+4. **Sign Actions**: Sign the required permits/transactions using your wallet's signing infrastructure
+5. **Collect User Data** (if required): Gather any additional user information for compliance
+6. **Confirm Payment**: Submit signatures and complete the payment
+
+## Supported Networks
+
+WalletConnect Pay currently supports USDC payments on the following networks:
+
+| Network | Chain ID |
+|---------|----------|
+| Ethereum | 1 |
+| Base | 8453 |
+| Optimism | 10 |
+| Polygon | 137 |
+| Arbitrum | 42161 |
+
+<Note>
+Support for all EVM chains, Solana, and additional native and non-native assets is coming soon.
+</Note>

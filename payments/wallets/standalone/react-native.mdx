@@ -1,12 +1,8 @@
 ---
-title: "WalletConnect Pay SDK - React Native Installation"
+title: "WalletConnect Pay SDK - React Native"
 description: "Integrate WalletConnect Pay into your React Native wallet to enable seamless crypto payments for your users."
 sidebarTitle: "React Native"
 ---
-
-<Note>
-**WalletConnect Pay will soon be bundled into the existing [Wallet SDK](https://docs.walletconnect.network/wallet-sdk/overview)**. If your wallet already uses the WalletConnect SDK, it is recommended to wait for the upcoming release and upgrade your SDK to enable WalletConnect Pay, rather than integrating the standalone WalletConnect Pay SDK below.
-</Note>
 
 The WalletConnect Pay SDK is a TypeScript SDK for WalletConnect Pay that enables payment functionality for React Native wallet applications. The SDK uses a provider abstraction that allows different implementations based on your environment.
 
@@ -14,8 +10,6 @@ The WalletConnect Pay SDK is a TypeScript SDK for WalletConnect Pay that enables
 
 - React Native 0.70+
 - `@walletconnect/react-native-compat` installed and linked
-
-As a wallet provider, you would first need to **obtain an API key from WalletConnect**. You can do this by filling out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
 
 ## Installation
 
@@ -59,26 +53,28 @@ Initialize the WalletConnect Pay client with your credentials:
 import { WalletConnectPay } from "@walletconnect/pay";
 
 const client = new WalletConnectPay({
-  projectId: "your-project-id",
-  apiKey: "your-api-key",
+  appId: "your-app-id",
+  // OR use apiKey instead:
+  // apiKey: "your-api-key",
 });
 ```
-
-<Info>
-Don't have an API key? Fill out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and get in touch with our team to obtain an API key.
-</Info>
 
 ### Configuration Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `projectId` | `string` | Yes | Your WalletConnect Cloud project ID |
-| `apiKey` | `string` | Yes | Your WalletConnect Pay API key |
+| `appId` | `string` | No* | App ID for authentication |
+| `apiKey` | `string` | No* | API key for authentication |
+| `clientId` | `string` | No | Client ID for tracking |
 | `baseUrl` | `string` | No | Custom API base URL |
 | `logger` | `Logger` | No | Custom logger instance or level |
 
+<Note>
+Either `appId` or `apiKey` must be provided for authentication.
+</Note>
+
 <Info>
-Don't have a project ID? Create one at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) by signing up and creating a new project.
+Don't have a project ID? Create one at the [WalletConnect Dashboard](https://cloud.reown.com) by signing up and creating a new project.
 </Info>
 
 ## Supported Networks
@@ -101,7 +97,7 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
 
 The payment flow consists of four main steps:
 
-**Get Options → Get Actions → Sign Actions → Confirm Payment**
+**Get Options -> Get Actions -> Sign Actions -> Confirm Payment**
 
 ```mermaid
 sequenceDiagram
@@ -149,9 +145,7 @@ const options = await client.getPaymentOptions({
   paymentLink: "https://pay.walletconnect.com/pay_123",
   accounts: [
     `eip155:1:${walletAddress}`,      // Ethereum Mainnet
-    `eip155:137:${walletAddress}`,    // Polygon
     `eip155:8453:${walletAddress}`,   // Base
-    `eip155:42161:${walletAddress}`,  // Arbitrum
   ],
   includePaymentInfo: true,
 });
@@ -270,8 +264,7 @@ class PaymentManager {
 
   constructor() {
     this.client = new WalletConnectPay({
-      projectId: "your-project-id",
-      apiKey: "your-api-key",
+      appId: "your-app-id",
     });
   }
 
@@ -659,4 +652,6 @@ interface CollectDataFieldResult {
 
 6. **Loading States**: Show loading indicators during API calls and signing operations
 
-7. **User Data**: Only collect data when `collectData` is present in the response
+7. **Expiration**: Check `paymentInfo.expiresAt` and warn users if time is running low
+
+8. **User Data**: Only collect data when `collectData` is present in the response
