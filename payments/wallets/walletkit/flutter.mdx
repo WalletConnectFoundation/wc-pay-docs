@@ -19,7 +19,7 @@ Add `reown_walletkit` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  reown_walletkit: ^1.0.0
+  reown_walletkit: ^1.4.0
 ```
 
 Then run:
@@ -437,14 +437,31 @@ enum PaymentStatus {
 
 ## Error Handling
 
-The SDK throws specific exception types for different error scenarios:
+The SDK throws specific exception types for different error scenarios. All errors extend the abstract `PayError` class, which itself extends `PlatformException`:
+
+```dart
+abstract class PayError extends PlatformException {
+  PayError({
+    required super.code,
+    required super.message,
+    required super.details,
+    required super.stacktrace,
+  });
+}
+```
 
 | Exception | Description |
 |-----------|-------------|
 | `PayInitializeError` | Initialization failures |
 | `GetPaymentOptionsError` | Errors when fetching payment options |
-| `GetRequiredActionError` | Errors when getting required actions |
+| `GetRequiredActionsError` | Errors when getting required actions |
 | `ConfirmPaymentError` | Errors when confirming payment |
+
+All errors include:
+- `code`: Error code
+- `message`: Error message
+- `details`: Additional error details
+- `stacktrace`: Stack trace
 
 ### Example Error Handling
 
@@ -454,7 +471,9 @@ try {
 } on GetPaymentOptionsError catch (e) {
   print('Error code: ${e.code}');
   print('Error message: ${e.message}');
-  // Handle error
+} on PayError catch (e) {
+  // Catch any Pay-related error
+  print('Pay error: ${e.message}');
 } catch (e) {
   print('Unexpected error: $e');
 }
