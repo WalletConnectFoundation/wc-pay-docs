@@ -13,16 +13,29 @@ This documentation covers integrating WalletConnect Pay through WalletKit. This 
 
 ## Installation
 
-Add WalletKit to your `build.gradle.kts`:
+First, add the required repositories to your project's `settings.gradle.kts` or root `build.gradle.kts`:
 
 ```kotlin
-implementation("com.reown:walletkit:{latest}")
+allprojects {
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+Then add WalletKit to your app's `build.gradle.kts` using the BOM (Bill of Materials):
+
+```kotlin
+releaseImplementation(platform("com.reown:android-bom:$BOM_VERSION"))
+releaseImplementation("com.reown:android-core")
+releaseImplementation("com.reown:walletkit")
 ```
 
 WalletConnectPay is automatically included as a dependency of WalletKit.
 
 <Info>
-Check the [GitHub releases](https://github.com/reown-com/reown-kotlin/releases) for the latest version.
+Check the [GitHub releases](https://github.com/reown-com/reown-kotlin/releases) for the latest BOM version.
 </Info>
 
 ## Initialization
