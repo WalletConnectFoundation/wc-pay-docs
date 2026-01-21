@@ -91,10 +91,10 @@ For more details on WalletKit initialization, see the [WalletKit Usage documenta
 Use `WalletKit.Pay.isPaymentLink()` to determine if a scanned URI is a payment link or a standard WalletConnect pairing URI:
 
 ```kotlin
-fun handleScannedUri(uri: String) {
+fun handleScannedUri(uri: String, accounts: List<String>) {
     if (WalletKit.Pay.isPaymentLink(uri)) {
         // Handle as payment - call getPaymentOptions
-        processPaymentLink(uri)
+        WalletKit.Pay.getPaymentOptions(uri, accounts)
     } else {
         // Handle as WalletConnect pairing
         WalletKit.pair(Wallet.Params.Pair(uri))
