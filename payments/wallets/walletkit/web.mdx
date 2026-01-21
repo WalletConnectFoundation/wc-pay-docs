@@ -1,10 +1,14 @@
 ---
-title: "WalletConnect Pay via WalletKit - JavaScript/Web"
-description: "Integrate WalletConnect Pay through WalletKit for a unified payment experience in your web wallet."
-sidebarTitle: "JavaScript / Web"
+title: "WalletConnect Pay via WalletKit - React Native"
+description: "Integrate WalletConnect Pay through WalletKit for a unified payment experience in your React Native wallet."
+sidebarTitle: "React Native"
 ---
 
-This documentation covers integrating WalletConnect Pay through WalletKit for JavaScript/Web wallets. This approach provides a unified API where Pay is built into WalletKit, simplifying the integration for wallet developers.
+<Warning>
+WalletConnect Pay is currently only available on React Native and requires `@walletconnect/react-native-compat` to be installed. Web/Node.js versions will be available soon.
+</Warning>
+
+This documentation covers integrating WalletConnect Pay through WalletKit for React Native wallets. This approach provides a unified API where Pay is built into WalletKit, simplifying the integration for wallet developers.
 
 ## Requirements
 
@@ -352,10 +356,6 @@ class PaymentManager {
 ## API Reference
 
 ### WalletKit Pay Methods
-
-<Warning>
-WalletConnect Pay is currently only available on React Native and requires `@walletconnect/react-native-compat` to be installed. Web/Node.js versions will be available soon.
-</Warning>
 
 Pay methods are accessed via `walletkit.pay.*`.
 
