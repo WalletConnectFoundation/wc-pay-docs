@@ -43,26 +43,48 @@ Check the [GitHub releases](https://github.com/reown-com/reown-kotlin/releases) 
 WalletConnectPay is automatically initialized when you initialize WalletKit. No additional setup is required.
 
 ```kotlin
+import com.reown.android.Core
+import com.reown.android.CoreClient
+import com.reown.android.relay.ConnectionType
 import com.reown.walletkit.client.WalletKit
 import com.reown.walletkit.client.Wallet
 
-// Initialize WalletKit as usual
+// First, initialize CoreClient in your Application class
+val projectId = "" // Get Project ID at https://dashboard.walletconnect.com/
+val connectionType = ConnectionType.AUTOMATIC // or ConnectionType.MANUAL
+val telemetryEnabled = true
+
+val appMetaData = Core.Model.AppMetaData(
+    name = "Wallet Name",
+    description = "Wallet Description",
+    url = "Wallet URL",
+    icons = listOf(/* list of icon url strings */),
+    redirect = "kotlin-wallet-wc:/request" // Custom Redirect URI
+)
+
+CoreClient.initialize(
+    projectId = projectId,
+    connectionType = connectionType,
+    application = this,
+    metaData = appMetaData,
+    telemetryEnabled = telemetryEnabled
+)
+
+// Then initialize WalletKit
 val initParams = Wallet.Params.Init(core = CoreClient)
 
-WalletKit.initialize(
-    params = initParams,
-    onSuccess = {
-        // WalletKit and Pay SDK are both ready
-    },
-    onError = { error ->
-        // Handle initialization error
-    }
-)
+WalletKit.initialize(initParams) { error ->
+    // Error will be thrown if there's an issue during initialization
+}
 ```
 
 The Pay SDK is initialized internally with:
 - `appId` from your WalletConnect Project ID
 - `packageName` from your application context
+
+<Info>
+For more details on WalletKit initialization, see the [WalletKit Usage documentation](https://docs.walletconnect.network/wallet-sdk/android/usage#initialization).
+</Info>
 
 ## Payment Link Detection
 
