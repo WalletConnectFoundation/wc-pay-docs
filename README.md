@@ -1,4 +1,4 @@
-# WalletConnect Network Docs
+# WalletConnect Pay Docs
 
 This repository is currently under development. If you come across any issues, please report them.
 
@@ -21,5 +21,4 @@ View your local preview at `http://localhost:3000`.
 ## Need help?
 
 ### Resources
-- [WalletConnect Docs](https://docs.walletconnect.network/)
-- [WalletConnect Community](https://discord.walletconnect.network/)
+- [WalletConnect SDK and Network Docs](https://docs.walletconnect.network/)
