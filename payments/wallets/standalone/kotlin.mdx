@@ -406,14 +406,6 @@ class PaymentViewModel : ViewModel() {
 }
 ```
 
-## Shutdown
-
-Release SDK resources when no longer needed:
-
-```kotlin
-WalletConnectPay.shutdown()
-```
-
 ## API Reference
 
 ### WalletConnectPay
@@ -434,7 +426,6 @@ Main entry point for the Pay SDK (singleton object).
 | `getPaymentOptions(paymentLink, accounts)` | Get available payment options |
 | `getRequiredPaymentActions(paymentId, optionId)` | Get actions requiring signatures |
 | `confirmPayment(paymentId, optionId, signatures, collectedData?)` | Confirm and finalize payment |
-| `shutdown()` | Release SDK resources |
 
 ## Data Models
 
@@ -615,5 +606,3 @@ result.onFailure { error ->
 5. **Error Handling**: Always handle errors gracefully and show appropriate user feedback
 
 6. **Thread Safety**: Events are delivered on IO dispatcher; update UI on main thread
-
-7. **Cleanup**: Call `shutdown()` when SDK is no longer needed
