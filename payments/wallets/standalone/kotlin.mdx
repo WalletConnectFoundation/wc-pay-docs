@@ -47,7 +47,8 @@ import com.walletconnect.pay.WalletConnectPay
 
 WalletConnectPay.initialize(
     Pay.SdkConfig(
-        appId = "your-project-id",      // Your WalletConnect Project ID
+        apiKey = "your-api-key",        // Your WalletConnect Pay API key (optional)
+        appId = "your-project-id",      // Your WalletConnect Project ID (optional)
         packageName = "com.your.app"    // Your app's package name
     )
 )
@@ -57,8 +58,13 @@ WalletConnectPay.initialize(
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `appId` | `String` | Yes | Your WalletConnect Project ID |
+| `apiKey` | `String` | No* | Your WalletConnect Pay API key |
+| `appId` | `String` | No* | Your WalletConnect Project ID |
 | `packageName` | `String` | Yes | Your application's package name |
+
+<Note>
+*Either `apiKey` or `appId` is required for authentication. You can use one or both.
+</Note>
 
 <Info>
 Don't have a project ID? Create one at the [WalletConnect Dashboard](https://cloud.reown.com) by signing up and creating a new project.
@@ -138,7 +144,8 @@ import com.walletconnect.pay.WalletConnectPay
 // In your Application class or before payment operations
 WalletConnectPay.initialize(
     Pay.SdkConfig(
-        appId = "your-project-id",
+        apiKey = "your-api-key",       // Optional: Your WalletConnect Pay API key
+        appId = "your-project-id",     // Optional: Your WalletConnect Project ID
         packageName = "com.your.app"
     )
 )
@@ -313,14 +320,15 @@ import kotlinx.coroutines.launch
 
 class PaymentViewModel : ViewModel() {
 
-    fun initializeSdk() {
-        WalletConnectPay.initialize(
-            Pay.SdkConfig(
-                appId = "your-project-id",
-                packageName = "com.your.app"
+        fun initializeSdk() {
+            WalletConnectPay.initialize(
+                Pay.SdkConfig(
+                    apiKey = "your-api-key",       // Optional
+                    appId = "your-project-id",     // Optional
+                    packageName = "com.your.app"
+                )
             )
-        )
-    }
+        }
 
     fun processPayment(paymentLink: String, walletAddress: String) {
         viewModelScope.launch {
