@@ -6,15 +6,6 @@ sidebarTitle: "Flutter"
 
 The `walletconnect_pay` Flutter plugin provides a complete payment SDK for integrating WalletConnect Pay into Flutter applications. It enables wallets to accept crypto and stablecoin payments across multiple assets and blockchain networks.
 
-## Features
-
-- Accept any stablecoin or crypto asset via wallets
-- Cross-platform support (iOS, Android)
-- Payment status tracking with polling support
-- Data collection for compliance (KYB/KYC)
-- Support for multiple blockchain networks
-- Type-safe models with Freezed
-
 ## Requirements
 
 - Flutter 3.0+
@@ -23,37 +14,10 @@ The `walletconnect_pay` Flutter plugin provides a complete payment SDK for integ
 
 ## Installation
 
-Add `walletconnect_pay` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  walletconnect_pay: ^0.0.1
-```
-
-Then run:
+Add `walletconnect_pay` package to your `pubspec.yaml` or simply run:
 
 ```bash
-flutter pub get
-```
-
-### Platform Setup
-
-#### iOS
-
-Add the following to your `ios/Podfile`:
-
-```ruby
-platform :ios, '13.0'
-```
-
-#### Android
-
-Ensure your `android/app/build.gradle` has:
-
-```gradle
-android {
-    minSdkVersion 23
-}
+flutter pub add walletconnect_pay
 ```
 
 ## Configuration
@@ -398,9 +362,9 @@ WalletConnectPay({
 
 | Method | Description |
 |--------|-------------|
-| `Future<bool> init()` | Initializes the SDK. Returns `true` on success |
+| `Future<bool> init()` | Initializes the SDK. Returns `true` on success or throw `PayInitializeError` on error |
 | `Future<PaymentOptionsResponse> getPaymentOptions({required GetPaymentOptionsRequest request})` | Retrieves available payment options |
-| `Future<List<Action>> getRequiredPaymentActions({required GetRequiredPaymentActionsRequest request})` | Gets the required wallet actions |
+| `Future<List<Action>> getRequiredPaymentActions({required GetRequiredPaymentActionsRequest request})` | Gets the required wallet actions for a selected option (to be called if the selected option does not have actions included) |
 | `Future<ConfirmPaymentResponse> confirmPayment({required ConfirmPaymentRequest request})` | Confirms a payment |
 
 ## Models
@@ -521,16 +485,27 @@ enum CollectDataFieldType {
 
 ## Error Handling
 
-The SDK throws specific exception types for different error scenarios:
+The SDK throws specific exception types for different error scenarios. All errors extend the abstract `PayError` class, which itself extends `PlatformException`:
+
+```dart
+abstract class PayError extends PlatformException {
+  PayError({
+    required super.code,
+    required super.message,
+    required super.details,
+    required super.stacktrace,
+  });
+}
+```
 
 | Exception | Description |
 |-----------|-------------|
 | `PayInitializeError` | Initialization failures |
 | `GetPaymentOptionsError` | Errors when fetching payment options |
-| `GetRequiredActionError` | Errors when getting required actions |
+| `GetRequiredActionsError` | Errors when getting required actions |
 | `ConfirmPaymentError` | Errors when confirming payment |
 
-All errors extend `PlatformException` and include:
+All errors include:
 - `code`: Error code
 - `message`: Error message
 - `details`: Additional error details
@@ -540,11 +515,19 @@ All errors extend `PlatformException` and include:
 
 ```dart
 try {
+  await payClient.init();
+} on PayInitializeError catch (e) {
+  print('Initialization failed: ${e.code} - ${e.message}');
+}
+
+try {
   final response = await payClient.getPaymentOptions(request: request);
 } on GetPaymentOptionsError catch (e) {
   print('Error code: ${e.code}');
   print('Error message: ${e.message}');
-  // Handle error
+} on PayError catch (e) {
+  // Catch any Pay-related error
+  print('Pay error: ${e.message}');
 } catch (e) {
   print('Unexpected error: $e');
 }
