@@ -1,12 +1,8 @@
 ---
-title: "WalletConnect Pay SDK - Swift Installation"
+title: "WalletConnect Pay SDK - Swift"
 description: "Integrate WalletConnect Pay into your iOS wallet to enable seamless crypto payments for your users."
 sidebarTitle: "Swift"
 ---
-
-<Note>
-**WalletConnect Pay will soon be bundled into the existing [Wallet SDK](https://docs.walletconnect.network/wallet-sdk/overview)**. If your wallet already uses the WalletConnect SDK, it is recommended to wait for the upcoming release and upgrade your SDK to enable WalletConnect Pay, rather than integrating the standalone WalletConnect Pay SDK below.
-</Note>
 
 The WalletConnect Pay SDK allows wallet users to pay merchants using their crypto assets. The SDK handles payment option discovery, permit signing coordination, and payment confirmation while leveraging your wallet's existing signing infrastructure.
 
@@ -16,8 +12,6 @@ The WalletConnect Pay SDK allows wallet users to pay merchants using their crypt
 - Swift 5.7+
 - Xcode 14.0+
 
-As a wallet provider, you would first need to **obtain an API key from WalletConnect**. You can do this by filling out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
-
 ## Installation
 
 ### Swift Package Manager
@@ -26,7 +20,7 @@ Add WalletConnectPay to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/reown-com/reown-swift", from: "2.0.0")
+    .package(url: "https://github.com/reown-com/reown-swift", from: "1.0.0")
 ]
 ```
 
@@ -51,26 +45,31 @@ Configure the Pay client during app initialization, typically in your `AppDelega
 import WalletConnectPay
 
 func application(_ application: UIApplication, didFinishLaunchingWithOptions...) {
+    // Option 1: With appId (recommended for wallets)
     WalletConnectPay.configure(
-        projectId: "your-walletconnect-project-id",
-        apiKey: "your-pay-api-key",
-        logging: true  // Enable for debugging
+        appId: "your-walletconnect-project-id",
+        logging: true
+    )
+    
+    // Option 2: With API key
+    WalletConnectPay.configure(
+        apiKey: "your-pay-api-key"
     )
 }
 ```
 
-<Info>
-Don't have an API key? Fill out [this form](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and get in touch with our team to obtain an API key.
-</Info>
-
 ### Configuration Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `projectId` | `String` | Yes | Your WalletConnect Cloud project ID |
-| `apiKey` | `String` | Yes | Your WalletConnect Pay API key |
-| `baseUrl` | `String` | No | Custom API URL (defaults to production) |
-| `logging` | `Bool` | No | Enable debug logging (default: `false`) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `apiKey` | `String?` | No* | `nil` | Your WalletConnect Pay API key |
+| `appId` | `String?` | No* | `nil` | Your WalletConnect project ID |
+| `baseUrl` | `String` | No | Production URL | Custom API URL |
+| `logging` | `Bool` | No | `false` | Enable debug logging |
+
+<Note>
+At least one of `apiKey` or `appId` must be provided.
+</Note>
 
 <Info>
 Don't have a project ID? Create one at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) by signing up and creating a new project.
@@ -78,7 +77,7 @@ Don't have a project ID? Create one at the [WalletConnect Dashboard](https://das
 
 ## Supported Networks
 
-WalletConnect Pay currently supports the following networks with USDC:
+WalletConnect Pay currently supports USDC payments on the following networks:
 
 | Network | Chain ID | CAIP-10 Format |
 |---------|----------|----------------|
@@ -92,11 +91,27 @@ WalletConnect Pay currently supports the following networks with USDC:
 Support for all EVM chains, Solana, and additional native and non-native assets is coming soon. Include accounts for all supported networks to maximize payment options for your users.
 </Note>
 
+## Detecting Payment Links
+
+The `isPaymentLink` utility method detects WalletConnect Pay links by checking for:
+- `pay.` hosts (e.g., pay.walletconnect.com)
+- `pay=` parameter in WalletConnect URIs
+- `pay_` prefix in bare payment IDs
+
+```swift
+func isPaymentLink(_ string: String) -> Bool {
+    let lower = string.lowercased()
+    return lower.contains("pay.") ||
+           lower.contains("pay=") ||
+           lower.contains("pay_")
+}
+```
+
 ## Payment Flow
 
 The payment flow consists of four main steps:
 
-**Get Options → Get Actions → Sign Permit → Confirm Payment**
+**Get Options -> Get Actions -> Sign Permit -> Confirm Payment**
 
 ```mermaid
 sequenceDiagram
@@ -412,27 +427,19 @@ To handle payment links opened from outside your app:
 func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
     guard let url = URLContexts.first?.url else { return }
     
-    if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-       components.queryItems?.contains(where: { $0.name == "pid" }) == true {
-        // This is a WalletConnect Pay link
-        let paymentLink = url.absoluteString
-        startPaymentFlow(paymentLink: paymentLink)
+    if isPaymentLink(url.absoluteString) {
+        startPaymentFlow(paymentLink: url.absoluteString)
     }
 }
 ```
 
 ## QR Code Scanning
 
-Payment links can be encoded as QR codes. Detect Pay QR codes by checking for the `pid` query parameter:
+Payment links can be encoded as QR codes. Use the `isPaymentLink` utility for detection:
 
 ```swift
 func handleScannedQR(_ content: String) {
-    guard let url = URL(string: content),
-          let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-        return
-    }
-    
-    if components.queryItems?.contains(where: { $0.name == "pid" }) == true {
+    if isPaymentLink(content) {
         // WalletConnect Pay QR code
         startPaymentFlow(paymentLink: content)
     }
@@ -483,7 +490,7 @@ Static configuration class for the Pay SDK.
 
 | Method | Description |
 |--------|-------------|
-| `configure(projectId:apiKey:baseUrl:logging:)` | Initialize the SDK with your credentials |
+| `configure(apiKey:appId:baseUrl:logging:)` | Initialize the SDK with your credentials |
 | `instance` | Access the shared `PayClient` instance |
 
 ### PayClient
@@ -500,31 +507,112 @@ Main client for payment operations.
 
 #### PaymentOptionsResponse
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `paymentId` | `String` | Unique payment identifier |
-| `info` | `PaymentInfo?` | Merchant and amount details |
-| `options` | `[PaymentOption]` | Available payment methods |
-| `collectData` | `CollectDataAction?` | Required user data fields (travel rule) |
+```swift
+struct PaymentOptionsResponse {
+    let paymentId: String              // Unique payment identifier
+    let info: PaymentInfo?             // Merchant and amount details
+    let options: [PaymentOption]       // Available payment methods
+    let collectData: CollectDataAction? // Required user data fields (travel rule)
+}
+```
+
+#### PaymentInfo
+
+```swift
+struct PaymentInfo {
+    let status: PaymentStatus          // Current payment status
+    let amount: PayAmount              // Requested payment amount
+    let expiresAt: Int64               // Expiration timestamp
+    let merchant: MerchantInfo         // Merchant details
+    let buyer: BuyerInfo?              // Buyer info if available
+}
+```
 
 #### PaymentOption
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `id` | `String` | Option identifier |
-| `amount` | `PayAmount` | Amount in this asset |
-| `etaS` | `Int64` | Estimated time to complete (seconds) |
-| `actions` | `[Action]` | Required signing actions |
+```swift
+struct PaymentOption {
+    let id: String                     // Option identifier
+    let amount: PayAmount              // Amount in this asset
+    let etaS: Int64                    // Estimated time to complete (seconds)
+    let actions: [Action]              // Required signing actions
+}
+```
 
-#### PaymentStatus
+#### PayAmount
 
-| Status | Description |
-|--------|-------------|
-| `.requiresAction` | Additional action needed |
-| `.processing` | Payment in progress |
-| `.succeeded` | Payment completed |
-| `.failed` | Payment failed |
-| `.expired` | Payment expired |
+```swift
+struct PayAmount {
+    let unit: String                   // Asset unit (e.g., "USDC")
+    let value: String                  // Raw value in smallest unit
+    let display: AmountDisplay         // Human-readable display info
+}
+
+struct AmountDisplay {
+    let assetSymbol: String            // Token symbol (e.g., "USDC")
+    let assetName: String              // Token name (e.g., "USD Coin")
+    let decimals: Int64                // Token decimals
+    let iconUrl: String?               // Token icon URL
+    let networkName: String?           // Network name (e.g., "Base")
+}
+```
+
+#### Action & WalletRpcAction
+
+```swift
+struct Action {
+    let walletRpc: WalletRpcAction     // RPC call to sign
+}
+
+struct WalletRpcAction {
+    let chainId: String                // Chain ID (e.g., "eip155:8453")
+    let method: String                 // RPC method (eth_signTypedData_v4)
+    let params: String                 // JSON-encoded parameters
+}
+```
+
+#### CollectDataAction & CollectDataField
+
+```swift
+struct CollectDataAction {
+    let fields: [CollectDataField]     // Required fields to collect
+}
+
+struct CollectDataField {
+    let id: String                     // Field identifier
+    let name: String                   // Display name
+    let required: Bool                 // Whether field is required
+    let fieldType: CollectDataFieldType // Type of input needed
+}
+
+enum CollectDataFieldType {
+    case text                          // Text input (names, etc.)
+    case date                          // Date input (format: YYYY-MM-DD)
+}
+
+struct CollectDataFieldResult {
+    let id: String                     // Field identifier (from CollectDataField)
+    let value: String                  // User-provided value
+}
+```
+
+#### ConfirmPaymentResultResponse
+
+```swift
+struct ConfirmPaymentResultResponse {
+    let status: PaymentStatus          // Final payment status
+    let isFinal: Bool                  // Whether status is final
+    let pollInMs: Int64?               // Suggested poll interval
+}
+
+enum PaymentStatus {
+    case requiresAction                // Additional action needed
+    case processing                    // Payment in progress
+    case succeeded                     // Payment completed
+    case failed                        // Payment failed
+    case expired                       // Payment expired
+}
+```
 
 ## Best Practices
 
