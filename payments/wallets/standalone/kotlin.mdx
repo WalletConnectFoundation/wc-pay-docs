@@ -63,7 +63,7 @@ WalletConnectPay.initialize(
 | `packageName` | `String` | Yes | Your application's package name |
 
 <Note>
-*Either `apiKey` or `appId` is required for authentication. You can use one or both.
+*Either `apiKey` or `appId` is required for authentication.
 </Note>
 
 <Info>
@@ -144,8 +144,7 @@ import com.walletconnect.pay.WalletConnectPay
 // In your Application class or before payment operations
 WalletConnectPay.initialize(
     Pay.SdkConfig(
-        apiKey = "your-api-key",       // Optional: Your WalletConnect Pay API key
-        appId = "your-project-id",     // Optional: Your WalletConnect Project ID
+        appId = "your-project-id",     // Your WalletConnect Project ID
         packageName = "com.your.app"
     )
 )
@@ -323,8 +322,7 @@ class PaymentViewModel : ViewModel() {
         fun initializeSdk() {
             WalletConnectPay.initialize(
                 Pay.SdkConfig(
-                    apiKey = "your-api-key",       // Optional
-                    appId = "your-project-id",     // Optional
+                    appId = "your-project-id",     // Your WalletConnect Project ID
                     packageName = "com.your.app"
                 )
             )
