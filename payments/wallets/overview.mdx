@@ -93,3 +93,30 @@ WalletConnect Pay currently supports USDC payments on the following networks:
 <Note>
 Support for all EVM chains, Solana, and additional native and non-native assets is coming soon.
 </Note>
+
+## User Information FAQs
+
+<Accordion title="Does the user need to enter their information for every transaction?">
+No. The process is optimised so users don't have to re-enter information for each transaction. Once collected, the information will be reused.
+</Accordion>
+
+<Accordion title="What if my wallet already has the required data?">
+Wallets that already have verified user PII (e.g. a neobank, a card issuing wallet) can pass this information directly. The user will see just the payment flow without additional data collection steps.
+</Accordion>
+
+<Accordion title="How does this work technically?">
+When processing a payment:
+1. Check if `response.collectData` is present
+2. If present and you don't already have the required user information, collect it from the user
+3. If present and you already have the required user information, skip collection and submit the data directly with the signatures
+</Accordion>
+
+<Accordion title="Why is user information required?">
+WalletConnect Pay complies with Travel Rule regulations to ensure the payment flow is scalable and future-proof across all regions. This requires capturing some user information like name and date of birth.
+</Accordion>
+
+<Accordion title="What are the requirements before submitting user information?">
+Whether you are collecting the information or not, before submitting user information to WalletConnect, you must ensure the user has accepted:
+- [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
+- [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
+</Accordion>
