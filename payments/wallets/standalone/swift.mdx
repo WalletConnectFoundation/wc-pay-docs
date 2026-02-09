@@ -262,9 +262,11 @@ If `response.collectData` is not nil, you must collect user information before c
 ```swift
 if let collectData = response.collectData, let url = collectData.url {
     // Build prefill URL with known user data
+    // Use the "required" list from collectData.schema to determine which fields to prefill
     let prefillData: [String: String] = [
         "fullName": "John Doe",
-        "dateOfBirth": "1990-01-15"
+        "dateOfBirth": "1990-01-15",
+        "pobAddress": "123 Main St, New York, NY 10001"
     ]
     let jsonData = try JSONSerialization.data(withJSONObject: prefillData)
     let prefillBase64 = jsonData.base64EncodedString()
@@ -592,6 +594,12 @@ struct PaymentOptionsResponse {
     let info: PaymentInfo?             // Merchant and amount details
     let options: [PaymentOption]       // Available payment methods
     let collectData: CollectDataAction? // Required user data fields (travel rule)
+    let resultInfo: PaymentResultInfo? // Transaction result details (present when payment already completed)
+}
+
+struct PaymentResultInfo {
+    let txId: String                   // Transaction ID
+    let optionAmount: PayAmount        // Token amount details
 }
 ```
 
@@ -666,12 +674,6 @@ struct ConfirmPaymentResultResponse {
     let status: PaymentStatus          // Final payment status
     let isFinal: Bool                  // Whether status is final
     let pollInMs: Int64?               // Suggested poll interval
-    let info: PaymentResultInfo?       // Transaction result details
-}
-
-struct PaymentResultInfo {
-    let txId: String                   // Transaction ID
-    let optionAmount: PayAmount        // Token amount details
 }
 
 enum PaymentStatus {

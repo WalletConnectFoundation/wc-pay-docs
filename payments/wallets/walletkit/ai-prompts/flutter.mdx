@@ -196,6 +196,12 @@ class PaymentOptionsResponse {
   final PaymentInfo? info;          // Merchant and payment details
   final List<PaymentOption> options; // Available payment methods
   final CollectDataAction? collectData; // Optional data collection with WebView URL
+  final PaymentResultInfo? resultInfo; // Transaction result details (present when payment already completed)
+}
+
+class PaymentResultInfo {
+  final String txId;               // Transaction ID
+  final PayAmount optionAmount;    // Token amount details
 }
 
 class CollectDataAction {

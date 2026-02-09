@@ -293,9 +293,11 @@ response.collectDataAction?.let { collectAction ->
     val url = collectAction.url
     if (url != null) {
         // Build prefill URL with known user data
+        // Use the "required" list from collectAction.schema to determine which fields to prefill
         val prefillJson = JSONObject().apply {
             put("fullName", "John Doe")
             put("dateOfBirth", "1990-01-15")
+            put("pobAddress", "123 Main St, New York, NY 10001")
         }.toString()
         val prefillBase64 = Base64.encodeToString(
             prefillJson.toByteArray(),
@@ -566,7 +568,13 @@ data class PaymentOptionsResponse(
     val paymentId: String,
     val info: PaymentInfo?,
     val options: List<PaymentOption>,
-    val collectDataAction: CollectDataAction?
+    val collectDataAction: CollectDataAction?,
+    val resultInfo: PaymentResultInfo?   // Transaction result details (present when payment already completed)
+)
+
+data class PaymentResultInfo(
+    val txId: String,                    // Transaction ID
+    val optionAmount: PaymentAmount      // Token amount details
 )
 ```
 
@@ -641,13 +649,7 @@ data class CollectDataAction(
 data class ConfirmPaymentResponse(
     val status: PaymentStatus,
     val isFinal: Boolean,
-    val pollInMs: Long?,
-    val info: PaymentResultInfo?
-)
-
-data class PaymentResultInfo(
-    val txId: String,
-    val optionAmount: PaymentAmount
+    val pollInMs: Long?
 )
 ```
 

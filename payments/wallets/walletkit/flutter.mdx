@@ -192,9 +192,11 @@ Some payments may require additional user data:
 
 ```dart
 if (response.collectData?.url != null) {
+  // Use the "required" list from response.collectData.schema to determine which fields to prefill
   final prefillData = {
     'fullName': 'John Doe',
     'dateOfBirth': '1990-01-15',
+    'pobAddress': '123 Main St, New York, NY 10001',
   };
   final prefillJson = jsonEncode(prefillData);
   final prefillBase64 = base64Url.encode(utf8.encode(prefillJson));
@@ -471,7 +473,17 @@ PaymentOptionsResponse({
   PaymentInfo? info,
   required List<PaymentOption> options,
   CollectDataAction? collectData,
+  PaymentResultInfo? resultInfo,     // Transaction result details (present when payment already completed)
 })
+```
+
+#### PaymentResultInfo
+
+```dart
+class PaymentResultInfo {
+  final String txId;               // Transaction ID
+  final PayAmount optionAmount;    // Token amount details
+}
 ```
 
 #### PaymentInfo
@@ -516,7 +528,6 @@ ConfirmPaymentResponse({
   required PaymentStatus status,
   required bool isFinal,
   int? pollInMs,
-  PaymentResultInfo? info,
 })
 ```
 
@@ -538,15 +549,6 @@ enum PaymentStatus {
 class CollectDataAction {
   final String url;                // WebView URL for data collection
   final String? schema;            // JSON schema describing required fields
-}
-```
-
-#### PaymentResultInfo
-
-```dart
-class PaymentResultInfo {
-  final String txId;               // Transaction ID
-  final PayAmount optionAmount;    // Token amount details
 }
 ```
 

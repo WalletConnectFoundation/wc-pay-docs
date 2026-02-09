@@ -224,9 +224,11 @@ Some payments may require additional user data. Check for `collectData` in the p
 
 ```typescript
 if (options.collectData?.url) {
+  // Use the "required" list from options.collectData.schema to determine which fields to prefill
   const prefillData = {
     fullName: "John Doe",
     dateOfBirth: "1990-01-15",
+    pobAddress: "123 Main St, New York, NY 10001",
   };
   const prefillBase64 = btoa(JSON.stringify(prefillData));
   const webViewUrl = `${options.collectData.url}?prefill=${prefillBase64}`;
@@ -595,6 +597,15 @@ interface PaymentOptionsResponse {
   options: PaymentOption[];
   /** Data collection requirements (if any) */
   collectData?: CollectDataAction;
+  /** Transaction result details (present when payment already completed) */
+  resultInfo?: PaymentResultInfo;
+}
+
+interface PaymentResultInfo {
+  /** Transaction ID */
+  txId: string;
+  /** Token amount details */
+  optionAmount: PayAmount;
 }
 
 interface ConfirmPaymentResponse {
@@ -604,15 +615,6 @@ interface ConfirmPaymentResponse {
   isFinal: boolean;
   /** Time to poll for payment status, in milliseconds */
   pollInMs?: number;
-  /** Transaction result details */
-  info?: PaymentResultInfo;
-}
-
-interface PaymentResultInfo {
-  /** Transaction ID */
-  txId: string;
-  /** Token amount details */
-  optionAmount: PayAmount;
 }
 ```
 

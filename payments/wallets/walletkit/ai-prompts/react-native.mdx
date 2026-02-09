@@ -473,6 +473,12 @@ interface PaymentOptionsResponse {
   options: PaymentOption[];
   collectData?: CollectDataAction;
   info?: PaymentInfo;
+  resultInfo?: PaymentResultInfo;  // present when payment already completed
+}
+
+interface PaymentResultInfo {
+  txId: string;
+  optionAmount: PayAmount;
 }
 
 interface PaymentOption {

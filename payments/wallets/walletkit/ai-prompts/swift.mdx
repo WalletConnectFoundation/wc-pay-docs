@@ -535,6 +535,12 @@ struct PaymentOptionsResponse {
     let info: PaymentInfo?
     let options: [PaymentOption]
     let collectData: CollectDataAction?    // nil if no travel rule
+    let resultInfo: PaymentResultInfo?     // present when payment already completed
+}
+
+struct PaymentResultInfo {
+    let txId: String
+    let optionAmount: PayAmount
 }
 
 struct PaymentInfo {
@@ -582,12 +588,6 @@ struct CollectDataAction {
 struct ConfirmPaymentResultResponse {
     let status: PaymentStatus
     let isFinal: Bool
-    let info: PaymentResultInfo?
-}
-
-struct PaymentResultInfo {
-    let txId: String
-    let optionAmount: PayAmount
 }
 
 enum PaymentStatus {

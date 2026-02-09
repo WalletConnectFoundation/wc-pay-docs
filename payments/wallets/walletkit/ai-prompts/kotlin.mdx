@@ -167,6 +167,12 @@ data class CollectDataAction(
     val schema: String?        // JSON schema describing required fields
 )
 
+// Transaction result details (present when payment already completed)
+data class PaymentResultInfo(
+    val txId: String,          // Transaction ID
+    val optionAmount: PaymentAmount  // Token amount details
+)
+
 // Signing action required from wallet
 data class WalletRpcAction(
     val chainId: String,

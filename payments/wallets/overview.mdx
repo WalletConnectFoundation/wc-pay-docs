@@ -102,7 +102,7 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
   </Accordion>
 
   <Accordion title="What if my wallet already has the required data?">
-    Wallets that already have verified user PII (e.g. a neobank, a card issuing wallet) can prefill the WebView form by appending a `?prefill=<base64-json>` query parameter to the WebView URL. The user will still see the form but with pre-populated fields, reducing friction.
+    Wallets that already have verified user PII (e.g. a neobank, a card issuing wallet) can prefill the WebView form by appending a `?prefill=<base64-json>` query parameter to the WebView URL. The `required` list from the `collectDataAction.schema` tells you which fields the form expects (e.g., `fullName`, `dateOfBirth`, `pobAddress`). The user will still see the form but with pre-populated fields, reducing friction.
   </Accordion>
 
   <Accordion title="How does this work technically?">
