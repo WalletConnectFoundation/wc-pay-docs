@@ -5,6 +5,9 @@ sidebarTitle: "React Native"
 ---
 
 import AppIdSnippet from "/snippets/app-id.mdx";
+import WebViewOverview from "/snippets/webview-data-collection-overview.mdx";
+import WebViewBestPractices from "/snippets/webview-data-collection-best-practices.mdx";
+import WebViewMessageTypes from "/snippets/webview-message-types.mdx";
 
 <Warning>
 WalletConnect Pay is currently only available on React Native and requires `@walletconnect/react-native-compat` to be installed. Web/Node.js versions will be available soon.
@@ -98,6 +101,7 @@ sequenceDiagram
     participant Wallet
     participant WalletKit as WalletKit.Pay
     participant Backend as WalletConnect Pay
+    participant WebView
 
     User->>Wallet: Scan QR / Open payment link
     Wallet->>WalletKit: isPaymentLink(uri)
@@ -118,8 +122,10 @@ sequenceDiagram
     User->>Wallet: Approve & sign
     
     alt Data collection required
-        Wallet->>User: Request additional info
-        User->>Wallet: Provide data
+        Wallet->>WebView: Load collectDataAction.url in WebView
+        WebView->>User: Display data collection form
+        User->>WebView: Fill form & accept T&C
+        WebView-->>Wallet: IC_COMPLETE message
     end
     
     Wallet->>WalletKit: pay.confirmPayment(params)
@@ -211,17 +217,23 @@ Signatures must be in the same order as the actions array.
 
 Some payments may require additional user data:
 
-```javascript
-let collectedData;
+<WebViewOverview />
 
-if (options.collectData) {
-  // Show UI to collect required fields
-  collectedData = options.collectData.fields.map((field) => ({
-    id: field.id,
-    value: getUserInput(field.name, field.fieldType),
-  }));
+```javascript
+if (options.collectData?.url) {
+  const prefillData = {
+    fullName: "John Doe",
+    dateOfBirth: "1990-01-15",
+  };
+  const prefillBase64 = btoa(JSON.stringify(prefillData));
+  const webViewUrl = `${options.collectData.url}?prefill=${prefillBase64}`;
+
+  // Show WebView and wait for IC_COMPLETE message
+  showDataCollectionWebView(webViewUrl);
 }
 ```
+
+<WebViewMessageTypes />
 
 </Step>
 
@@ -253,6 +265,71 @@ if (result.status === "succeeded") {
 </Step>
 
 </Steps>
+
+## WebView Implementation
+
+When `collectData.url` is present, display the URL in a WebView using `react-native-webview`. Install the dependency:
+
+```bash
+npm install react-native-webview@13.16.0
+```
+
+```jsx
+import React, { useCallback } from "react";
+import { WebView } from "react-native-webview";
+import { Linking, View, ActivityIndicator } from "react-native";
+
+function PayDataCollectionWebView({ url, onComplete, onError }) {
+  const handleMessage = useCallback(
+    (event) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        switch (data.type) {
+          case "IC_COMPLETE":
+            onComplete();
+            break;
+          case "IC_ERROR":
+            onError(data.error || "Unknown error");
+            break;
+        }
+      } catch {
+        // Ignore non-JSON messages
+      }
+    },
+    [onComplete, onError]
+  );
+
+  const handleNavigationRequest = useCallback((request) => {
+    if (!request.url.includes("pay.walletconnect.com")) {
+      Linking.openURL(request.url);
+      return false;
+    }
+    return true;
+  }, []);
+
+  return (
+    <WebView
+      source={{ uri: url }}
+      onMessage={handleMessage}
+      onShouldStartLoadWithRequest={handleNavigationRequest}
+      javaScriptEnabled
+      domStorageEnabled
+      startInLoadingState
+      renderLoading={() => (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" />
+        </View>
+      )}
+    />
+  );
+}
+
+function buildPrefillUrl(baseUrl, prefillData) {
+  if (Object.keys(prefillData).length === 0) return baseUrl;
+  const base64 = btoa(JSON.stringify(prefillData));
+  return `${baseUrl}?prefill=${base64}`;
+}
+```
 
 ## Complete Example
 
@@ -322,18 +399,16 @@ class PaymentManager {
         actions.map((action) => this.signAction(action, walletAddress))
       );
 
-      // Step 5: Collect user data if required
-      let collectedData;
-      if (options.collectData) {
-        collectedData = await this.collectUserData(options.collectData.fields);
+      // Step 5: Collect data via WebView if required
+      if (options.collectData?.url) {
+        await this.showDataCollectionWebView(options.collectData.url);
       }
 
-      // Step 6: Confirm payment
+      // Step 6: Confirm payment (no collectedData when WebView is used)
       const result = await this.walletkit.pay.confirmPayment({
         paymentId: options.paymentId,
         optionId: selectedOption.id,
         signatures,
-        collectedData,
       });
 
       return result;
@@ -346,17 +421,9 @@ class PaymentManager {
   async signAction(action, walletAddress) {
     const { chainId, method, params } = action.walletRpc;
     const parsedParams = JSON.parse(params);
-    
+
     // Use your wallet's signing implementation
     return await wallet.signTypedData(chainId, parsedParams);
-  }
-
-  async collectUserData(fields) {
-    // Implement your UI to collect user data
-    return fields.map((field) => ({
-      id: field.id,
-      value: getUserInput(field.name, field.fieldType),
-    }));
   }
 }
 ```
@@ -409,7 +476,6 @@ interface ConfirmPaymentParams {
   paymentId: string;        // Payment ID
   optionId: string;         // Selected option ID
   signatures: string[];     // Signatures from wallet RPC calls
-  collectedData?: CollectDataFieldResult[];  // Collected user data
 }
 ```
 
@@ -458,13 +524,19 @@ interface ConfirmPaymentResponse {
   status: PaymentStatus;    // Payment status
   isFinal: boolean;         // Whether status is final
   pollInMs?: number;        // Suggested poll interval
+  info?: PaymentResultInfo; // Transaction result details
 }
 
-type PaymentStatus = 
-  | "requires_action" 
-  | "processing" 
-  | "succeeded" 
-  | "failed" 
+interface PaymentResultInfo {
+  txId: string;             // Transaction ID
+  optionAmount: PayAmount;  // Token amount details
+}
+
+type PaymentStatus =
+  | "requires_action"
+  | "processing"
+  | "succeeded"
+  | "failed"
   | "expired";
 ```
 
@@ -507,19 +579,10 @@ interface AmountDisplay {
 
 ```typescript
 interface CollectDataAction {
-  fields: CollectDataField[];
-}
-
-interface CollectDataField {
-  id: string;               // Field identifier
-  name: string;             // Display name
-  required: boolean;        // Whether field is required
-  fieldType: "text" | "date";  // Type of input needed
-}
-
-interface CollectDataFieldResult {
-  id: string;               // Field identifier
-  value: string;            // User-provided value
+  /** WebView URL for data collection */
+  url: string;
+  /** JSON schema describing required fields */
+  schema?: string;
 }
 ```
 
@@ -563,3 +626,5 @@ try {
 8. **Expiration**: Check `paymentInfo.expiresAt` and warn users if time is running low
 
 9. **User Data**: Only collect data when `collectData` is present in the response and you don't already have the required user data. If you already have the required data, you can submit this without collecting from the user. You must make sure the user accepts WalletConnect Terms and Conditions and Privacy Policy before submitting user information to WalletConnect.
+
+10. **WebView Data Collection**: When `collectData.url` is present, display the URL in a WebView using `react-native-webview` rather than building native forms. The WebView handles form rendering, validation, and T&C acceptance.

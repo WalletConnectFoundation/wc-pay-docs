@@ -4,6 +4,10 @@ description: "Integrate WalletConnect Pay into your Android wallet to enable sea
 sidebarTitle: "Kotlin"
 ---
 
+import WebViewOverview from "/snippets/webview-data-collection-overview.mdx";
+import WebViewBestPractices from "/snippets/webview-data-collection-best-practices.mdx";
+import WebViewMessageTypes from "/snippets/webview-message-types.mdx";
+
 The WalletConnect Pay SDK allows wallet users to pay merchants using their crypto assets. The SDK handles payment option discovery, permit signing coordination, and payment confirmation while leveraging your wallet's existing signing infrastructure.
 
 ## Requirements
@@ -104,6 +108,7 @@ sequenceDiagram
     participant Wallet
     participant PaySDK as Pay SDK
     participant Backend as WalletConnect Pay
+    participant WebView
 
     User->>Wallet: Scan QR / Open payment link
     Wallet->>PaySDK: getPaymentOptions(link, accounts)
@@ -111,21 +116,23 @@ sequenceDiagram
     Backend-->>PaySDK: Payment options + merchant info
     PaySDK-->>Wallet: PaymentOptionsResponse
     Wallet->>User: Display payment options
-    
+
     User->>Wallet: Select payment option
     Wallet->>PaySDK: getRequiredPaymentActions(paymentId, optionId)
     PaySDK->>Backend: Get signing actions
     Backend-->>PaySDK: Required wallet RPC actions
     PaySDK-->>Wallet: List of actions to sign
-    
+
     Wallet->>User: Request signature(s)
     User->>Wallet: Approve & sign
-    
+
     alt Data collection required
-        Wallet->>User: Request additional info
-        User->>Wallet: Provide data
+        Wallet->>WebView: Load collectDataAction.url in WebView
+        WebView->>User: Display data collection form
+        User->>WebView: Fill form & accept T&C
+        WebView-->>Wallet: IC_COMPLETE message
     end
-    
+
     Wallet->>PaySDK: confirmPayment(signatures, collectedData)
     PaySDK->>Backend: Submit payment
     Backend-->>PaySDK: Payment status
@@ -251,20 +258,30 @@ Signatures must be in the same order as the actions array.
 
 Some payments require collecting additional user information. Check for `collectDataAction` in the payment options response:
 
+<WebViewOverview />
+
 ```kotlin
 response.collectDataAction?.let { collectAction ->
-    val collectedData = collectAction.fields.map { field ->
-        val value = when (field.fieldType) {
-            Pay.CollectDataFieldType.TEXT -> getUserTextInput(field.name)
-            Pay.CollectDataFieldType.DATE -> getUserDateInput(field.name) // Format: YYYY-MM-DD
-        }
-        Pay.CollectDataFieldResult(
-            id = field.id,
-            value = value
+    val url = collectAction.url
+    if (url != null) {
+        // Build prefill URL with known user data
+        val prefillJson = JSONObject().apply {
+            put("fullName", "John Doe")
+            put("dateOfBirth", "1990-01-15")
+        }.toString()
+        val prefillBase64 = Base64.encodeToString(
+            prefillJson.toByteArray(),
+            Base64.NO_WRAP or Base64.URL_SAFE
         )
+        val webViewUrl = "$url?prefill=$prefillBase64"
+
+        // Show WebView — see WebView Implementation section below
+        showWebView(webViewUrl)
     }
 }
 ```
+
+<WebViewMessageTypes />
 
 </Step>
 
@@ -307,6 +324,81 @@ confirmResult.onSuccess { response ->
 </Step>
 
 </Steps>
+
+## WebView Implementation
+
+When `collectDataAction.url` is present, display the URL in a WebView. The WebView handles form rendering, validation, and T&C acceptance.
+
+```kotlin
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.content.Intent
+import android.net.Uri
+import android.util.Base64
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.viewinterop.AndroidView
+import org.json.JSONObject
+
+@Composable
+fun PayDataCollectionWebView(
+    url: String,
+    onComplete: () -> Unit,
+    onError: (String) -> Unit
+) {
+    AndroidView(factory = { context ->
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+
+            addJavascriptInterface(
+                object {
+                    @JavascriptInterface
+                    fun onDataCollectionComplete(json: String) {
+                        val message = JSONObject(json)
+                        when (message.optString("type")) {
+                            "IC_COMPLETE" -> onComplete()
+                            "IC_ERROR" -> onError(
+                                message.optString("error", "Unknown error")
+                            )
+                        }
+                    }
+                },
+                "AndroidWallet"
+            )
+
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    val requestUrl = request?.url?.toString() ?: return false
+                    // Open external links (T&C, Privacy Policy) in system browser
+                    if (!requestUrl.contains("pay.walletconnect.com")) {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(requestUrl)))
+                        return true
+                    }
+                    return false
+                }
+            }
+
+            loadUrl(url)
+        }
+    })
+}
+
+fun buildPrefillUrl(baseUrl: String, prefillData: Map<String, String>): String {
+    if (prefillData.isEmpty()) return baseUrl
+    val json = JSONObject(prefillData).toString()
+    val base64 = Base64.encodeToString(
+        json.toByteArray(),
+        Base64.NO_WRAP or Base64.URL_SAFE
+    )
+    return "$baseUrl?prefill=$base64"
+}
+```
 
 ## Complete Example
 
@@ -354,17 +446,18 @@ class PaymentViewModel : ViewModel() {
                     // Step 3: Sign actions
                     val signatures = signActions(actions)
 
-                    // Step 4: Collect data if required
-                    val collectedData = response.collectDataAction?.let {
-                        collectUserData(it.fields)
+                    // Step 4: Collect data if required (via WebView)
+                    response.collectDataAction?.url?.let { webViewUrl ->
+                        // Show WebView and wait for IC_COMPLETE
+                        showDataCollectionWebView(webViewUrl)
+                        return@launch // Resume after WebView completes
                     }
 
-                    // Step 5: Confirm payment
+                    // Step 5: Confirm payment (no collectedData when WebView is used)
                     val confirmResult = WalletConnectPay.confirmPayment(
                         paymentId = paymentId,
                         optionId = selectedOption.id,
-                        signatures = signatures,
-                        collectedData = collectedData
+                        signatures = signatures
                     )
 
                     confirmResult.onSuccess { confirmation ->
@@ -423,7 +516,7 @@ Main entry point for the Pay SDK (singleton object).
 | `initialize(config: Pay.SdkConfig)` | Initialize the SDK |
 | `getPaymentOptions(paymentLink, accounts)` | Get available payment options |
 | `getRequiredPaymentActions(paymentId, optionId)` | Get actions requiring signatures |
-| `confirmPayment(paymentId, optionId, signatures, collectedData?)` | Confirm and finalize payment |
+| `confirmPayment(paymentId, optionId, signatures)` | Confirm and finalize payment |
 
 ## Data Models
 
@@ -502,13 +595,28 @@ sealed class RequiredAction {
 }
 ```
 
+### Pay.CollectDataAction
+
+```kotlin
+data class CollectDataAction(
+    val url: String,               // WebView URL for data collection
+    val schema: String?            // JSON schema describing required fields
+)
+```
+
 ### Pay.ConfirmPaymentResponse
 
 ```kotlin
 data class ConfirmPaymentResponse(
     val status: PaymentStatus,
     val isFinal: Boolean,
-    val pollInMs: Long?
+    val pollInMs: Long?,
+    val info: PaymentResultInfo?
+)
+
+data class PaymentResultInfo(
+    val txId: String,
+    val optionAmount: Amount
 )
 ```
 
@@ -604,3 +712,5 @@ result.onFailure { error ->
 5. **Error Handling**: Always handle errors gracefully and show appropriate user feedback
 
 6. **Thread Safety**: Events are delivered on IO dispatcher; update UI on main thread
+
+7. **WebView Data Collection**: When `collectDataAction.url` is present, display the URL in a WebView rather than building native forms. The WebView handles form rendering, validation, and T&C acceptance.

@@ -44,9 +44,9 @@ dependencies {
 WalletConnect Pay enables crypto payments through payment links. The flow works as follows:
 
 ```
-Payment Link → Get Options → [Collect Data] → Sign Actions → Confirm Payment
-       ↓             ↓              ↓               ↓              ↓
-   Detection    API call      Optional KYC   Wallet signs    Backend confirms
+Payment Link → Get Options → [WebView Data Collection] → Sign Actions → Confirm Payment
+       ↓             ↓              ↓                         ↓              ↓
+   Detection    API call      Optional KYC               Wallet signs    Backend confirms
 ```
 
 ### WalletKit Integration
@@ -161,12 +161,10 @@ data class PaymentOption(
     val estimatedTxs: Int?
 )
 
-// Data collection field (for KYC/compliance)
-data class CollectDataField(
-    val id: String,
-    val name: String,
-    val fieldType: CollectDataFieldType, // TEXT or DATE
-    val required: Boolean
+// Data collection action (for KYC/compliance via WebView)
+data class CollectDataAction(
+    val url: String,           // WebView URL for data collection
+    val schema: String?        // JSON schema describing required fields
 )
 
 // Signing action required from wallet
@@ -206,39 +204,97 @@ suspend fun getPaymentOptions(
 }
 ```
 
-#### 2.2 Handle Data Collection (if required)
+#### 2.2 Handle Data Collection via WebView (if required)
 
 Some payments require user information (KYC/AML compliance). Check for `collectDataAction` in the response:
 
 ```kotlin
 fun processPaymentOptionsResponse(response: Wallet.Model.PaymentOptionsResponse) {
-    val collectDataFields = response.collectDataAction?.fields ?: emptyList()
+    val collectDataUrl = response.collectDataAction?.url
 
-    if (collectDataFields.isNotEmpty()) {
-        // Show data collection UI before payment options
-        showDataCollectionFlow(collectDataFields)
+    if (collectDataUrl != null) {
+        // Show WebView for data collection before payment options
+        showDataCollectionWebView(collectDataUrl)
     } else {
         // Show payment options directly
         showPaymentOptions(response.options, response.info)
     }
 }
+```
 
-// Collect data from user for each field
-data class CollectedData(
-    val fieldId: String,
-    val value: String
-)
+When `collectDataAction.url` is present, display the URL in a WebView. The hosted form handles rendering, validation, and Terms & Conditions acceptance. The WebView communicates completion via JavaScript bridge messages (`IC_COMPLETE` / `IC_ERROR`).
 
-fun collectUserData(fields: List<Wallet.Model.CollectDataField>): List<CollectedData> {
-    // Implement UI to collect data based on field type:
-    // - TEXT: Free-form text input
-    // - DATE: Date picker (format: YYYY-MM-DD)
-    return fields.map { field ->
-        CollectedData(
-            fieldId = field.id,
-            value = getUserInputForField(field)
-        )
-    }
+> **Important:** When using the WebView approach, do **not** pass `collectedData` to `confirmPayment()`. The WebView submits data directly to the backend.
+
+#### WebView Implementation
+
+```kotlin
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.content.Intent
+import android.net.Uri
+import android.util.Base64
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.viewinterop.AndroidView
+import org.json.JSONObject
+
+@Composable
+fun PayDataCollectionWebView(
+    url: String,
+    onComplete: () -> Unit,
+    onError: (String) -> Unit
+) {
+    AndroidView(factory = { context ->
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+
+            addJavascriptInterface(
+                object {
+                    @JavascriptInterface
+                    fun onDataCollectionComplete(json: String) {
+                        val message = JSONObject(json)
+                        when (message.optString("type")) {
+                            "IC_COMPLETE" -> onComplete()
+                            "IC_ERROR" -> onError(
+                                message.optString("error", "Unknown error")
+                            )
+                        }
+                    }
+                },
+                "AndroidWallet"
+            )
+
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    val requestUrl = request?.url?.toString() ?: return false
+                    if (!requestUrl.contains("pay.walletconnect.com")) {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(requestUrl)))
+                        return true
+                    }
+                    return false
+                }
+            }
+
+            loadUrl(url)
+        }
+    })
+}
+
+fun buildPrefillUrl(baseUrl: String, prefillData: Map<String, String>): String {
+    if (prefillData.isEmpty()) return baseUrl
+    val json = JSONObject(prefillData).toString()
+    val base64 = Base64.encodeToString(
+        json.toByteArray(),
+        Base64.NO_WRAP or Base64.URL_SAFE
+    )
+    return "$baseUrl?prefill=$base64"
 }
 ```
 
@@ -361,22 +417,13 @@ Submit signatures and collected data to confirm the payment:
 suspend fun confirmPayment(
     paymentId: String,
     optionId: String,
-    signatures: List<String>,
-    collectedData: List<CollectedData>?
+    signatures: List<String>
 ): Result<Wallet.Model.ConfirmPaymentResponse> {
-    val fieldResults = collectedData?.map { data ->
-        Wallet.Model.CollectDataFieldResult(
-            id = data.fieldId,
-            value = data.value
-        )
-    }
-
     return WalletKit.Pay.confirmPayment(
         Wallet.Params.ConfirmPayment(
             paymentId = paymentId,
             optionId = optionId,
-            signatures = signatures,
-            collectedData = fieldResults
+            signatures = signatures
         )
     )
 }
@@ -421,11 +468,8 @@ sealed class PaymentUiState {
         val hasDataCollection: Boolean
     ) : PaymentUiState()
 
-    data class CollectingData(
-        val currentStepIndex: Int,
-        val totalSteps: Int,
-        val currentField: Wallet.Model.CollectDataField,
-        val currentValue: String
+    data class WebViewDataCollection(
+        val url: String
     ) : PaymentUiState()
 
     data class Options(
@@ -467,8 +511,7 @@ class PaymentViewModel(
     private var currentPaymentId: String? = null
     private var selectedOptionId: String? = null
     private var pendingActions: List<Wallet.Model.RequiredAction.WalletRpc> = emptyList()
-    private var collectedData: MutableMap<String, String> = mutableMapOf()
-    private var collectDataFields: List<Wallet.Model.CollectDataField> = emptyList()
+    private var webViewUrl: String? = null
     private var storedPaymentInfo: Wallet.Model.PaymentInfo? = null
     private var storedOptions: List<Wallet.Model.PaymentOption> = emptyList()
 
@@ -483,11 +526,11 @@ class PaymentViewModel(
                     currentPaymentId = response.paymentId
                     storedPaymentInfo = response.info
                     storedOptions = response.options
-                    collectDataFields = response.collectDataAction?.fields ?: emptyList()
+                    webViewUrl = response.collectDataAction?.url
 
                     if (response.options.isEmpty()) {
                         _uiState.value = PaymentUiState.Error("No payment options available")
-                    } else if (collectDataFields.isNotEmpty()) {
+                    } else if (webViewUrl != null) {
                         _uiState.value = PaymentUiState.Intro(
                             paymentInfo = response.info,
                             hasDataCollection = true
@@ -540,20 +583,12 @@ class PaymentViewModel(
                 walletRepository.signWalletRpcAction(action.action)
             }
 
-            // Convert collected data
-            val fieldResults = if (collectedData.isNotEmpty()) {
-                collectedData.map { (id, value) ->
-                    Wallet.Model.CollectDataFieldResult(id = id, value = value)
-                }
-            } else null
-
-            // Confirm payment
+            // Confirm payment (no collectedData - WebView handles submission)
             WalletKit.Pay.confirmPayment(
                 Wallet.Params.ConfirmPayment(
                     paymentId = paymentId,
                     optionId = optionId,
-                    signatures = signatures,
-                    collectedData = fieldResults
+                    signatures = signatures
                 )
             )
                 .onSuccess { response ->
@@ -579,16 +614,23 @@ class PaymentViewModel(
         }
     }
 
-    fun submitFieldValue(fieldId: String, value: String) {
-        collectedData[fieldId] = value
-        // Navigate to next field or options screen
+    fun onWebViewComplete() {
+        // WebView data collection completed, proceed to options
+        _uiState.value = PaymentUiState.Options(
+            paymentInfo = storedPaymentInfo,
+            options = storedOptions
+        )
+    }
+
+    fun onWebViewError(error: String) {
+        _uiState.value = PaymentUiState.Error(error)
     }
 
     fun cancel() {
         currentPaymentId = null
         selectedOptionId = null
         pendingActions = emptyList()
-        collectedData.clear()
+        webViewUrl = null
         _uiState.value = PaymentUiState.Loading
     }
 }
@@ -626,12 +668,10 @@ fun PaymentScreen(
             onCancel = { viewModel.cancel(); onDismiss() }
         )
 
-        is PaymentUiState.CollectingData -> DataCollectionContent(
-            field = state.currentField,
-            currentValue = state.currentValue,
-            stepInfo = "${state.currentStepIndex + 1}/${state.totalSteps}",
-            onSubmit = { value -> viewModel.submitFieldValue(state.currentField.id, value) },
-            onBack = { viewModel.goBack() }
+        is PaymentUiState.WebViewDataCollection -> PayDataCollectionWebView(
+            url = state.url,
+            onComplete = { viewModel.onWebViewComplete() },
+            onError = { error -> viewModel.onWebViewError(error) }
         )
 
         is PaymentUiState.Options -> OptionsContent(
@@ -824,9 +864,10 @@ class PaymentFlowExample(
 
         val paymentId = optionsResponse.paymentId
 
-        // 3. Handle data collection if required
-        val collectedData = optionsResponse.collectDataAction?.fields?.let { fields ->
-            collectDataFromUser(fields)
+        // 3. Handle data collection via WebView if required
+        optionsResponse.collectDataAction?.url?.let { url ->
+            showDataCollectionWebView(url)
+            // Wait for IC_COMPLETE before proceeding
         }
 
         // 4. Let user select payment option
@@ -847,10 +888,7 @@ class PaymentFlowExample(
             Wallet.Params.ConfirmPayment(
                 paymentId = paymentId,
                 optionId = selectedOption.id,
-                signatures = signatures,
-                collectedData = collectedData?.map {
-                    Wallet.Model.CollectDataFieldResult(it.fieldId, it.value)
-                }
+                signatures = signatures
             )
         ).getOrThrow()
 

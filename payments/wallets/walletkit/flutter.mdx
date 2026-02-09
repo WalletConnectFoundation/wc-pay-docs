@@ -5,6 +5,9 @@ sidebarTitle: "Flutter"
 ---
 
 import AppIdSnippet from "/snippets/app-id.mdx";
+import WebViewOverview from "/snippets/webview-data-collection-overview.mdx";
+import WebViewBestPractices from "/snippets/webview-data-collection-best-practices.mdx";
+import WebViewMessageTypes from "/snippets/webview-message-types.mdx";
 
 This documentation covers integrating WalletConnect Pay through ReownWalletKit. This approach provides a unified API where Pay is automatically initialized alongside WalletKit, simplifying the integration for wallet developers.
 
@@ -91,6 +94,7 @@ The payment flow consists of five main steps:
 sequenceDiagram
     participant User
     participant Wallet
+    participant WebView
     participant WalletKit as WalletKit.Pay
     participant Backend as WalletConnect Pay
 
@@ -113,8 +117,10 @@ sequenceDiagram
     User->>Wallet: Approve & sign
     
     alt Data collection required
-        Wallet->>User: Request additional info
-        User->>Wallet: Provide data
+        Wallet->>WebView: Load collectDataAction.url in WebView
+        WebView->>User: Display data collection form
+        User->>WebView: Fill form & accept T&C
+        WebView-->>Wallet: IC_COMPLETE message
     end
     
     Wallet->>WalletKit: confirmPayment(request)
@@ -182,20 +188,24 @@ for (final action in actions) {
 
 Some payments may require additional user data:
 
-```dart
-List<CollectDataFieldResult>? collectedData;
+<WebViewOverview />
 
-if (response.collectData != null) {
-  collectedData = <CollectDataFieldResult>[];
-  for (final field in response.collectData!.fields) {
-    // Collect data from user (e.g., full name, date of birth)
-    collectedData.add(CollectDataFieldResult(
-      id: field.id,
-      value: userInput,
-    ));
-  }
+```dart
+if (response.collectData?.url != null) {
+  final prefillData = {
+    'fullName': 'John Doe',
+    'dateOfBirth': '1990-01-15',
+  };
+  final prefillJson = jsonEncode(prefillData);
+  final prefillBase64 = base64Url.encode(utf8.encode(prefillJson));
+  final webViewUrl = '${response.collectData!.url}?prefill=$prefillBase64';
+
+  // Show WebView and wait for IC_COMPLETE message
+  showDataCollectionWebView(webViewUrl);
 }
 ```
+
+<WebViewMessageTypes />
 
 </Step>
 
@@ -224,6 +234,91 @@ print('Is Final: ${confirmResponse.isFinal}');
 </Step>
 
 </Steps>
+
+## WebView Implementation
+
+When `collectData.url` is present, display the URL in a WebView using `webview_flutter` (v4.10.0+). Add dependencies:
+
+```yaml
+dependencies:
+  webview_flutter: ^4.10.0
+  url_launcher: ^6.1.0
+```
+
+```dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class PayDataCollectionWebView extends StatefulWidget {
+  final String url;
+  final VoidCallback onComplete;
+  final ValueChanged<String> onError;
+
+  const PayDataCollectionWebView({
+    super.key,
+    required this.url,
+    required this.onComplete,
+    required this.onError,
+  });
+
+  @override
+  State<PayDataCollectionWebView> createState() =>
+      _PayDataCollectionWebViewState();
+}
+
+class _PayDataCollectionWebViewState extends State<PayDataCollectionWebView> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) => setState(() => _isLoading = false),
+        onNavigationRequest: (request) {
+          if (!request.url.contains('pay.walletconnect.com')) {
+            launchUrl(Uri.parse(request.url),
+                mode: LaunchMode.externalApplication);
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
+        },
+      ))
+      ..addJavaScriptChannel(
+        'ReactNativeWebView',
+        onMessageReceived: (message) {
+          try {
+            final data = jsonDecode(message.message) as Map<String, dynamic>;
+            switch (data['type']) {
+              case 'IC_COMPLETE':
+                widget.onComplete();
+                break;
+              case 'IC_ERROR':
+                widget.onError(data['error'] ?? 'Unknown error');
+                break;
+            }
+          } catch (_) {}
+        },
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        WebViewWidget(controller: _controller),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator()),
+      ],
+    );
+  }
+}
+```
 
 ## Complete Example
 
@@ -254,13 +349,9 @@ class PaymentService {
         throw Exception('No payment options available');
       }
 
-      // Step 2: Collect additional data if required (KYB/KYC)
-      final collectedData = <CollectDataFieldResult>[];
-      if (optionsResponse.collectData != null) {
-        for (final field in optionsResponse.collectData!.fields) {
-          // Collect data from user (e.g., full name, date of birth)
-          // Example: collectedData.add(CollectDataFieldResult(id: field.id, value: userInput));
-        }
+      // Step 2: Collect data via WebView if required
+      if (optionsResponse.collectData?.url != null) {
+        await showDataCollectionWebView(optionsResponse.collectData!.url);
       }
 
       // Step 3: Select payment option (or let user choose)
@@ -286,13 +377,12 @@ class PaymentService {
         // Example: signatures.add(await signTransaction(action.walletRpc));
       }
 
-      // Step 6: Confirm payment with polling
+      // Step 6: Confirm payment (no collectedData when WebView is used)
       ConfirmPaymentResponse confirmResponse = await walletKit.confirmPayment(
         request: ConfirmPaymentRequest(
           paymentId: paymentId,
           optionId: optionId,
           signatures: signatures,
-          collectedData: collectedData.isNotEmpty ? collectedData : null,
           maxPollMs: 60000, // Maximum polling time in milliseconds
         ),
       );
@@ -305,7 +395,6 @@ class PaymentService {
             paymentId: paymentId,
             optionId: optionId,
             signatures: signatures,
-            collectedData: collectedData.isNotEmpty ? collectedData : null,
             maxPollMs: 60000,
           ),
         );
@@ -416,7 +505,6 @@ ConfirmPaymentRequest({
   required String paymentId,
   required String optionId,
   required List<String> signatures,
-  List<CollectDataFieldResult>? collectedData,
   int? maxPollMs,
 })
 ```
@@ -428,6 +516,7 @@ ConfirmPaymentResponse({
   required PaymentStatus status,
   required bool isFinal,
   int? pollInMs,
+  PaymentResultInfo? info,
 })
 ```
 
@@ -440,6 +529,24 @@ enum PaymentStatus {
   succeeded,
   failed,
   expired,
+}
+```
+
+#### CollectDataAction
+
+```dart
+class CollectDataAction {
+  final String url;                // WebView URL for data collection
+  final String? schema;            // JSON schema describing required fields
+}
+```
+
+#### PaymentResultInfo
+
+```dart
+class PaymentResultInfo {
+  final String txId;               // Transaction ID
+  final PayAmount optionAmount;    // Token amount details
 }
 ```
 
@@ -506,6 +613,8 @@ try {
 8. **Expiration**: Check `paymentInfo.expiresAt` and warn users if time is running low
 
 9. **User Data**: Only collect data when `collectData` is present in the response and you don't already have the required user data. If you already have the required data, you can submit this without collecting from the user. You must make sure the user accepts WalletConnect Terms and Conditions and Privacy Policy before submitting user information to WalletConnect.
+
+10. **WebView Data Collection**: When `collectData.url` is present, display the URL in a WebView using `webview_flutter` rather than building native forms. The WebView handles form rendering, validation, and T&C acceptance.
 
 ## Examples
 

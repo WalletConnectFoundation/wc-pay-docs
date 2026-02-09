@@ -104,6 +104,10 @@ After your wallet executes the required `walletRpc` actions (sign/submit), call 
 If `isFinal` is `false`, the response may include `pollInMs`. Use it to decide when to check again (see the API Reference for status/polling behavior).
 </Note>
 
+<Info>
+The WalletConnect Pay SDKs now support **WebView-based data collection**. When `collectData.url` is present in the payment options response, wallets can display this URL in a WebView instead of building native forms. The WebView handles form rendering, validation, and T&C acceptance, and submits data directly to the backend. See the [platform-specific SDK documentation](/payments/wallets/overview) for implementation details.
+</Info>
+
 ## API Reference
 
 For request/response schemas and examples for each Gateway endpoint, see the **[API Reference](/api-reference)**.

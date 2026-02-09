@@ -259,12 +259,11 @@ const confirmPayment = async () => {
     }
   }
 
-  // Confirm the payment
+  // Confirm the payment (no collectedData - WebView handles submission)
   const result = await payClient.confirmPayment({
     paymentId: paymentData.paymentId,
     optionId: selectedOption.id,
     signatures,
-    collectedData: collectedDataResults.length > 0 ? collectedDataResults : undefined,
   });
 
   return result;
@@ -338,14 +337,14 @@ If you must parse the typed data, be aware of these issues:
 
 ```
 LOADING → ERROR (if failed)
-        → COLLECT_DATA (if collectData exists) → CONFIRM → CONFIRMING → SUCCESS
+        → WEBVIEW_DATA_COLLECTION (if collectData.url exists) → CONFIRM → CONFIRMING → SUCCESS
         → CONFIRM → CONFIRMING → SUCCESS
 ```
 
 ### State Definition
 
 ```typescript
-type Step = 'loading' | 'intro' | 'collectData' | 'confirm' | 'confirming' | 'result';
+type Step = 'loading' | 'intro' | 'webviewDataCollection' | 'confirm' | 'confirming' | 'result';
 
 interface PaymentModalState {
   step: Step;
@@ -355,8 +354,7 @@ interface PaymentModalState {
   paymentActions: Action[] | null;
   isLoadingActions: boolean;
   actionsError: string | null;
-  collectedData: Record<string, string>;
-  fieldErrors: Record<string, string>;
+  webViewUrl: string | null;
 }
 ```
 
@@ -364,7 +362,7 @@ interface PaymentModalState {
 
 1. **Loading View** - Spinner with message
 2. **Intro View** - Merchant info, amount, continue button
-3. **Collect Data View** - Form fields (if `paymentOptions.collectData` exists)
+3. **WebView Data Collection View** - WebView form (if `paymentOptions.collectData?.url` exists)
 4. **Confirm View** - Payment options list, selected option details, approve button
 5. **Result View** - Success or error message with close button
 
@@ -457,7 +455,6 @@ await walletKit.pay.confirmPayment({
   paymentId: string,
   optionId: string,
   signatures: string[],            // Array of 0x-prefixed signatures
-  collectedData?: { id, value }[], // If collectData was required
 });
 ```
 
@@ -498,14 +495,8 @@ interface PayAmount {
 }
 
 interface CollectDataAction {
-  fields: CollectDataField[];
-}
-
-interface CollectDataField {
-  id: string;
-  name: string;
-  required: boolean;
-  fieldType: 'text' | 'date';
+  url: string;                  // WebView URL for data collection
+  schema?: string;              // JSON schema describing required fields
 }
 
 interface Action {
@@ -573,6 +564,79 @@ const signature = await wallet.signTypedData({ domain, types, primaryType, messa
 ```typescript
 const signature = await web3.eth.signTypedData(address, typedData);
 ```
+
+### 3.5 WebView Data Collection
+
+When `paymentOptions.collectData?.url` is present, display the URL in a WebView. The hosted form handles rendering, validation, and T&C acceptance.
+
+Install `react-native-webview`:
+
+```bash
+npm install react-native-webview@13.16.0
+```
+
+```tsx
+import React, { useCallback } from "react";
+import { WebView, WebViewMessageEvent } from "react-native-webview";
+import { Linking, View, ActivityIndicator } from "react-native";
+
+interface PayDataCollectionWebViewProps {
+  url: string;
+  onComplete: () => void;
+  onError: (error: string) => void;
+}
+
+function PayDataCollectionWebView({
+  url,
+  onComplete,
+  onError,
+}: PayDataCollectionWebViewProps) {
+  const handleMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        switch (data.type) {
+          case "IC_COMPLETE":
+            onComplete();
+            break;
+          case "IC_ERROR":
+            onError(data.error || "Unknown error");
+            break;
+        }
+      } catch {
+        // Ignore non-JSON messages
+      }
+    },
+    [onComplete, onError]
+  );
+
+  const handleNavigationRequest = useCallback((request: { url: string }) => {
+    if (!request.url.includes("pay.walletconnect.com")) {
+      Linking.openURL(request.url);
+      return false;
+    }
+    return true;
+  }, []);
+
+  return (
+    <WebView
+      source={{ uri: url }}
+      onMessage={handleMessage}
+      onShouldStartLoadWithRequest={handleNavigationRequest}
+      javaScriptEnabled
+      domStorageEnabled
+      startInLoadingState
+      renderLoading={() => (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" />
+        </View>
+      )}
+    />
+  );
+}
+```
+
+> **Important:** When using the WebView approach, do **not** pass `collectedData` to `confirmPayment()`. The WebView submits data directly to the backend.
 
 ---
 
@@ -660,6 +724,7 @@ When implementation is complete, verify:
 - [ ] Payment sub-components (IntroView, ConfirmView, etc.)
 - [ ] Payment utility functions
 - [ ] Payment state reducer (if using reducer pattern)
+- [ ] WebView data collection component (using react-native-webview)
 
 **Native Build:**
 
