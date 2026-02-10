@@ -99,6 +99,10 @@ After your wallet executes the required `walletRpc` actions (sign/submit), call 
 - `results[]`: the output from each executed action (in the same order you performed them)
 - optional `collectedData` if the options response requested additional user info
 
+<Info>
+If you used the **WebView-based data collection** flow (i.e., displayed `collectData.url` in a WebView), there is no need to send `collectedData` in the confirm request — the WebView submits user data directly to the backend.
+</Info>
+
 <Note>
 If `isFinal` is `false`, the response may include `pollInMs`. Use it to decide when to check again (see the API Reference for status/polling behavior).
 </Note>
