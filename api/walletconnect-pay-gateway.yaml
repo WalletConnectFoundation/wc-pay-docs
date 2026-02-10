@@ -193,6 +193,8 @@ paths:
                     value: John Smith
                   - id: dob
                     value: "1990-01-01"
+                  - id: tosConfirmed
+                    value: "true"
               optionId: opt_123
               results:
                 - data:

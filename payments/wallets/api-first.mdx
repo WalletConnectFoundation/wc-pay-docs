@@ -19,15 +19,12 @@ This flow is centered around **three Gateway calls**:
 - **Required headers** on each request:
   - `Api-Key` — your API key
 
-<Warning>
-Do **not** set `Sdk-Name`, `Sdk-Version`, or `Sdk-Platform` headers. These are reserved for WalletConnect's own SDKs and should not be used for custom integrations.
-</Warning>
 
 ## Payment flow
 
 The payment flow mirrors the SDK flow, but you call the Gateway API directly:
 
-**Get Options → (Fetch Actions) → Execute Wallet RPC → (Collect Data) → Confirm Payment**
+**Get Options → (Collect Data) → (Fetch Actions) → Execute Wallet RPC → Confirm Payment**
 
 ```mermaid
 sequenceDiagram
@@ -41,6 +38,11 @@ sequenceDiagram
     Gateway-->>Wallet: options[] (+ optional info/collectData)
     Wallet->>User: Display payment options
 
+    alt Data collection required
+        Wallet->>User: Request additional info (WebView)
+        User->>Wallet: Complete form
+    end
+
     User->>Wallet: Select payment option
 
     alt Option includes a build action
@@ -52,11 +54,6 @@ sequenceDiagram
     User->>Wallet: Approve
     Wallet->>Chain: Execute wallet RPC actions (in order)
     Chain-->>Wallet: Results (e.g., signature(s) / tx hash(es))
-
-    alt Data collection required
-        Wallet->>User: Request additional info (WebView)
-        User->>Wallet: Complete form
-    end
 
     Wallet->>Gateway: POST /v1/gateway/payment/{id}/confirm (optionId, results, collectedData?)
     Gateway-->>Wallet: status + isFinal (+ pollInMs)
