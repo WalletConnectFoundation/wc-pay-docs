@@ -19,19 +19,9 @@ paths:
           required: true
           schema:
             type: string
-        - name: Sdk-Name
+        - name: App-Id
           in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Version
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Platform
-          in: header
-          required: true
+          required: false
           schema:
             type: string
         - name: id
@@ -97,19 +87,9 @@ paths:
           required: true
           schema:
             type: string
-        - name: Sdk-Name
+        - name: App-Id
           in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Version
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Platform
-          in: header
-          required: true
+          required: false
           schema:
             type: string
         - name: id
@@ -172,7 +152,7 @@ paths:
       tags:
         - Gateway
       summary: Confirm a payment
-      description: This endpoint confirms a payment and submits it to the blockchain for processing.
+      description: "This endpoint confirms a payment and submits it to the blockchain for processing. This is the COMMITMENT point - after this succeeds, the payment is durable."
       operationId: confirm_payment_handler
       parameters:
         - name: Api-Key
@@ -180,19 +160,9 @@ paths:
           required: true
           schema:
             type: string
-        - name: Sdk-Name
+        - name: App-Id
           in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Version
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: Sdk-Platform
-          in: header
-          required: true
+          required: false
           schema:
             type: string
         - name: id
@@ -331,10 +301,21 @@ components:
           type: string
           nullable: true
           description: URL of the icon of the asset (if token)
+        networkIconUrl:
+          type: string
+          nullable: true
+          description: URL of the icon of the network
         networkName:
           type: string
           nullable: true
           description: Name of the network of the asset (if token)
+    Build:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: string
     BuyerInfo:
       type: object
       required:
@@ -351,18 +332,16 @@ components:
         accountProviderName:
           type: string
           description: Account provider name
-    Build:
-      type: object
-      required:
-        - data
-      properties:
-        data:
-          type: string
     CollectData:
       type: object
-      required:
-        - fields
       properties:
+        url:
+          type: string
+          description: WebView URL for data collection
+        schema:
+          type: object
+          nullable: true
+          description: JSON schema describing the required fields
         fields:
           type: array
           items:
@@ -476,9 +455,6 @@ components:
         - missing_api_key
         - missing_merchant_api_key
         - missing_merchant_id
-        - missing_sdk_name
-        - missing_sdk_version
-        - missing_sdk_platform
         - header_not_ascii
         - not_sandbox_api_key
         - merchant_not_found
@@ -596,6 +572,9 @@ components:
         - etaS
         - actions
       properties:
+        account:
+          type: string
+          description: CAIP-10 account identifier for this option
         actions:
           type: array
           items:
@@ -642,5 +621,3 @@ components:
       name: Api-Key
 security:
   - API Key: []
-
-

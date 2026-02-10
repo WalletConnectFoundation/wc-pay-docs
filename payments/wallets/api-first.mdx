@@ -4,22 +4,24 @@ sidebarTitle: "API-first (No SDK)"
 description: "Integrate WalletConnect Pay in a wallet without an SDK, using the Gateway API."
 ---
 
-If you’re integrating WalletConnect Pay into a wallet **without using the Wallet Pay SDK**, you can use an API-first approach via the **Gateway API**.
+If you're integrating WalletConnect Pay into a wallet **without using the Wallet Pay SDK**, you can use an API-first approach via the **Gateway API**.
 
 This flow is centered around **three Gateway calls**:
 
 - **Get payment options**: list options the user can complete with their wallet/accounts
-- **Fetch an action**: resolve “build” actions into wallet RPC actions when needed
+- **Fetch an action**: resolve "build" actions into wallet RPC actions when needed
 - **Confirm a payment**: submit the selected option and the executed action results
 
 ## Prerequisites
 
 - **API key**: request access from WalletConnect
   - You can do this by filling out [**this form**](https://share.hsforms.com/19Dpp4ayYR9uriB3xNAh0JAnxw6s) and getting in touch with our team.
-- **Wallet identity headers** (required on each request):
-  - `Sdk-Name`
-  - `Sdk-Version`
-  - `Sdk-Platform`
+- **Required headers** on each request:
+  - `Api-Key` — your API key
+
+<Warning>
+Do **not** set `Sdk-Name`, `Sdk-Version`, or `Sdk-Platform` headers. These are reserved for WalletConnect's own SDKs and should not be used for custom integrations.
+</Warning>
 
 ## Payment flow
 
@@ -52,8 +54,8 @@ sequenceDiagram
     Chain-->>Wallet: Results (e.g., signature(s) / tx hash(es))
 
     alt Data collection required
-        Wallet->>User: Request additional info
-        User->>Wallet: Provide data
+        Wallet->>User: Request additional info (WebView)
+        User->>Wallet: Complete form
     end
 
     Wallet->>Gateway: POST /v1/gateway/payment/{id}/confirm (optionId, results, collectedData?)
@@ -97,7 +99,7 @@ If an option contains an action of type **`build`**, call **Fetch an action** wi
 After your wallet executes the required `walletRpc` actions (sign/submit), call **Confirm a payment** with:
 
 - the selected `optionId`
-- `results[]`: the output from each executed action (in the same spirit/order you performed them)
+- `results[]`: the output from each executed action (in the same order you performed them)
 - optional `collectedData` if the options response requested additional user info
 
 <Note>
@@ -105,11 +107,9 @@ If `isFinal` is `false`, the response may include `pollInMs`. Use it to decide w
 </Note>
 
 <Info>
-The WalletConnect Pay SDKs now support **WebView-based data collection**. When `collectData.url` is present in the payment options response, wallets can display this URL in a WebView instead of building native forms. The WebView handles form rendering, validation, and T&C acceptance, and submits data directly to the backend. See the [platform-specific SDK documentation](/payments/wallets/overview) for implementation details.
+The WalletConnect Pay SDKs support **WebView-based data collection**. When `collectData.url` is present in the payment options response, wallets can display this URL in a WebView instead of building native forms. The WebView handles form rendering, validation, and T&C acceptance, and submits data directly to the backend. See the [platform-specific SDK documentation](/payments/wallets/overview) for implementation details.
 </Info>
 
 ## API Reference
 
 For request/response schemas and examples for each Gateway endpoint, see the **[API Reference](/api-reference)**.
-
-
