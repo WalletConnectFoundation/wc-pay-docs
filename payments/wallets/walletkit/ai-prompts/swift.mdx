@@ -383,7 +383,7 @@ func confirmPayment(
         try await showDataCollectionWebView(url: url)
     }
 
-    // 4. Confirm payment (no collectedData when WebView is used)
+    // 4. Confirm payment
     let result = try await WalletKit.instance.Pay.confirmPayment(
         paymentId: paymentId,
         optionId: selectedOption.id,

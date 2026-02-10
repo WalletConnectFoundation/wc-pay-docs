@@ -270,7 +270,11 @@ if let collectData = response.collectData, let url = collectData.url {
     ]
     let jsonData = try JSONSerialization.data(withJSONObject: prefillData)
     let prefillBase64 = jsonData.base64EncodedString()
-    let webViewUrl = "\(url)?prefill=\(prefillBase64)"
+    var components = URLComponents(string: url)!
+    var queryItems = components.queryItems ?? []
+    queryItems.append(URLQueryItem(name: "prefill", value: prefillBase64))
+    components.queryItems = queryItems
+    let webViewUrl = components.string!
 
     // Show WebView — see WebView Implementation section below
     showWebView(url: webViewUrl)
@@ -397,12 +401,15 @@ struct PayDataCollectionWebView: UIViewRepresentable {
 
 func buildPrefillUrl(baseUrl: String, prefillData: [String: String]) -> String {
     guard !prefillData.isEmpty,
-          let jsonData = try? JSONSerialization.data(withJSONObject: prefillData),
-          let base64 = jsonData.base64EncodedString()
-              .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+          let jsonData = try? JSONSerialization.data(withJSONObject: prefillData) else {
         return baseUrl
     }
-    return "\(baseUrl)?prefill=\(base64)"
+    let base64 = jsonData.base64EncodedString()
+    var components = URLComponents(string: baseUrl)!
+    var queryItems = components.queryItems ?? []
+    queryItems.append(URLQueryItem(name: "prefill", value: base64))
+    components.queryItems = queryItems
+    return components.string ?? baseUrl
 }
 ```
 
@@ -463,7 +470,7 @@ class PaymentManager {
             try await showDataCollectionWebView(url: url)
         }
 
-        // 6. Confirm payment (no collectedData when WebView is used)
+        // 6. Confirm payment
         let result = try await WalletConnectPay.instance.confirmPayment(
             paymentId: optionsResponse.paymentId,
             optionId: selectedOption.id,

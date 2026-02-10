@@ -200,7 +200,10 @@ if (response.collectData?.url != null) {
   };
   final prefillJson = jsonEncode(prefillData);
   final prefillBase64 = base64Url.encode(utf8.encode(prefillJson));
-  final webViewUrl = '${response.collectData!.url}?prefill=$prefillBase64';
+  final uri = Uri.parse(response.collectData!.url);
+  final webViewUrl = uri.replace(
+    queryParameters: {...uri.queryParameters, 'prefill': prefillBase64},
+  ).toString();
 
   // Show WebView — see WebView Implementation section below
   showDataCollectionWebView(webViewUrl);
@@ -348,7 +351,10 @@ String buildPrefillUrl(String baseUrl, Map<String, String> prefillData) {
   if (prefillData.isEmpty) return baseUrl;
   final json = jsonEncode(prefillData);
   final base64 = base64Url.encode(utf8.encode(json));
-  return '$baseUrl?prefill=$base64';
+  final uri = Uri.parse(baseUrl);
+  return uri.replace(
+    queryParameters: {...uri.queryParameters, 'prefill': base64},
+  ).toString();
 }
 ```
 
@@ -410,7 +416,7 @@ class PaymentService {
       await showDataCollectionWebView(optionsResponse.collectData!.url);
     }
 
-    // Step 6: Confirm payment (no collectedData when WebView is used)
+    // Step 6: Confirm payment
     final confirmResponse = await _payClient.confirmPayment(
       request: ConfirmPaymentRequest(
         paymentId: optionsResponse.paymentId,

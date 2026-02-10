@@ -275,7 +275,9 @@ response.collectDataAction?.let { collectAction ->
             prefillJson.toByteArray(),
             Base64.NO_WRAP or Base64.URL_SAFE
         )
-        val webViewUrl = "$url?prefill=$prefillBase64"
+        val webViewUrl = Uri.parse(url).buildUpon()
+            .appendQueryParameter("prefill", prefillBase64)
+            .build().toString()
 
         // Show WebView — see WebView Implementation section below
         showWebView(webViewUrl)
@@ -398,7 +400,9 @@ fun buildPrefillUrl(baseUrl: String, prefillData: Map<String, String>): String {
         json.toByteArray(),
         Base64.NO_WRAP or Base64.URL_SAFE
     )
-    return "$baseUrl?prefill=$base64"
+    return Uri.parse(baseUrl).buildUpon()
+        .appendQueryParameter("prefill", base64)
+        .build().toString()
 }
 ```
 
@@ -455,7 +459,7 @@ class PaymentViewModel : ViewModel() {
                         return@launch // Resume after WebView completes
                     }
 
-                    // Step 5: Confirm payment (no collectedData when WebView is used)
+                    // Step 5: Confirm payment
                     val confirmResult = WalletConnectPay.confirmPayment(
                         paymentId = paymentId,
                         optionId = selectedOption.id,

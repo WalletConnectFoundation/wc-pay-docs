@@ -8,7 +8,7 @@ Instead of building native forms, wallets display this URL in a WebView. The hos
 
 1. Check if `collectDataAction.url` is present in the payment options response
 2. Open the URL in a WebView within your wallet
-3. Optionally append a `?prefill=<base64-json>` query parameter with known user data (e.g., name, date of birth, address)
+3. Optionally append a `prefill=<base64-json>` query parameter with known user data (e.g., name, date of birth, address). Use proper URL building to handle existing query parameters.
 4. Listen for JS bridge messages: `IC_COMPLETE` (success) or `IC_ERROR` (failure)
 5. On `IC_COMPLETE`, proceed to `confirmPayment()` **without** passing `collectedData` — the WebView submits data directly to the backend
 

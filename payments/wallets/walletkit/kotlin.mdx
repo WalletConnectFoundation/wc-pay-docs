@@ -303,7 +303,9 @@ response.collectDataAction?.let { collectAction ->
             prefillJson.toByteArray(),
             Base64.NO_WRAP or Base64.URL_SAFE
         )
-        val webViewUrl = "$url?prefill=$prefillBase64"
+        val webViewUrl = Uri.parse(url).buildUpon()
+            .appendQueryParameter("prefill", prefillBase64)
+            .build().toString()
 
         // Show WebView and wait for IC_COMPLETE message
         showWebView(webViewUrl)
@@ -476,7 +478,7 @@ class PaymentViewModel : ViewModel() {
                         return@launch
                     }
 
-                    // Step 5: Confirm payment (no collectedData when WebView is used)
+                    // Step 5: Confirm payment
                     val confirmResult = WalletKit.Pay.confirmPayment(
                         Wallet.Params.ConfirmPayment(
                             paymentId = paymentId,

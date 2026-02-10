@@ -200,7 +200,10 @@ if (response.collectData?.url != null) {
   };
   final prefillJson = jsonEncode(prefillData);
   final prefillBase64 = base64Url.encode(utf8.encode(prefillJson));
-  final webViewUrl = '${response.collectData!.url}?prefill=$prefillBase64';
+  final uri = Uri.parse(response.collectData!.url);
+  final webViewUrl = uri.replace(
+    queryParameters: {...uri.queryParameters, 'prefill': prefillBase64},
+  ).toString();
 
   // Show WebView and wait for IC_COMPLETE message
   showDataCollectionWebView(webViewUrl);
@@ -379,7 +382,7 @@ class PaymentService {
         // Example: signatures.add(await signTransaction(action.walletRpc));
       }
 
-      // Step 6: Confirm payment (no collectedData when WebView is used)
+      // Step 6: Confirm payment
       ConfirmPaymentResponse confirmResponse = await walletKit.confirmPayment(
         request: ConfirmPaymentRequest(
           paymentId: paymentId,

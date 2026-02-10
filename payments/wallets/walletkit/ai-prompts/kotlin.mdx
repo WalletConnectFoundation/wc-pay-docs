@@ -300,7 +300,9 @@ fun buildPrefillUrl(baseUrl: String, prefillData: Map<String, String>): String {
         json.toByteArray(),
         Base64.NO_WRAP or Base64.URL_SAFE
     )
-    return "$baseUrl?prefill=$base64"
+    return Uri.parse(baseUrl).buildUpon()
+        .appendQueryParameter("prefill", base64)
+        .build().toString()
 }
 ```
 

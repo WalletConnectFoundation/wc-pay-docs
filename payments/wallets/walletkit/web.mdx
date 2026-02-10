@@ -228,7 +228,8 @@ if (options.collectData?.url) {
     pobAddress: "123 Main St, New York, NY 10001",
   };
   const prefillBase64 = btoa(JSON.stringify(prefillData));
-  const webViewUrl = `${options.collectData.url}?prefill=${prefillBase64}`;
+  const separator = options.collectData.url.includes("?") ? "&" : "?";
+  const webViewUrl = `${options.collectData.url}${separator}prefill=${prefillBase64}`;
 
   // Show WebView and wait for IC_COMPLETE message
   showDataCollectionWebView(webViewUrl);
@@ -329,7 +330,8 @@ function PayDataCollectionWebView({ url, onComplete, onError }) {
 function buildPrefillUrl(baseUrl, prefillData) {
   if (Object.keys(prefillData).length === 0) return baseUrl;
   const base64 = btoa(JSON.stringify(prefillData));
-  return `${baseUrl}?prefill=${base64}`;
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}prefill=${base64}`;
 }
 ```
 
@@ -406,7 +408,7 @@ class PaymentManager {
         await this.showDataCollectionWebView(options.collectData.url);
       }
 
-      // Step 6: Confirm payment (no collectedData when WebView is used)
+      // Step 6: Confirm payment
       const result = await this.walletkit.pay.confirmPayment({
         paymentId: options.paymentId,
         optionId: selectedOption.id,
