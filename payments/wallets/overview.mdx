@@ -128,5 +128,29 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
     - Data submission directly to the backend
 
     The WebView communicates with the wallet via JavaScript bridge messages (`IC_COMPLETE` when done, `IC_ERROR` on failure). See the platform-specific documentation for implementation details.
+
+    We strongly recommend using the WebView-based flow over building custom native UI. Data collection requirements are driven by regulation and can evolve. The hosted WebView form is maintained and updated centrally so that wallets can automatically pick up changes.
+  </Accordion>
+
+  <Accordion title="Can wallets implement custom UI instead of the WebView form?">
+    Yes.
+
+    Wallets that choose to implement custom UI assume responsibility for keeping their forms in sync with changes, which can introduce delays and potential jurisdictional blockers. Wallets also must ensure the user has accepted:
+    - [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
+    - [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
+
+    The required user information can be sent to WalletConnect using schema in the `collect_data` object.
+
+    We strongly recommend using the WebView-based flow over building custom native UI. Data collection requirements are driven by regulation and can evolve. The hosted WebView form is maintained and updated centrally so that wallets can automatically pick up changes.
+  </Accordion>
+
+  <Accordion title="Can wallets pre-fill customer information?">
+    Yes.
+
+    Wallets can pre-fill user information and it will be shown in the WebView form.
+
+    If wallets choose to skip the WebView form, they must ensure the user has accepted:
+    - [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
+    - [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
   </Accordion>
 </AccordionGroup>
