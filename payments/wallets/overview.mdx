@@ -133,9 +133,11 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
   </Accordion>
 
   <Accordion title="Can wallets implement custom UI instead of the WebView form?">
-    Yes.
+    Yes, with a caveat.
+    
+    Wallets that choose to implement custom UI assume responsibility for keeping their forms in sync with these changes. When changes are rolled out, wallets must implement them immediately. If the provided data is not what is requested, users in the relevant jurisdiction(s) will be unable to pay until the custom integration is updated. The WebView approach eliminates this overhead and ensures a consistent, up-to-date experience with minimal integration effort.
 
-    Wallets that choose to implement custom UI assume responsibility for keeping their forms in sync with changes, which can introduce delays and potential jurisdictional blockers. Wallets also must ensure the user has accepted:
+    Wallets also must ensure the user has accepted:
     - [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
     - [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
 
