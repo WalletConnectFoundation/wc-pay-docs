@@ -75,7 +75,7 @@ Regardless of which integration approach you choose, the payment flow follows th
 2. **Get Payment Options**: Fetch available payment options based on user's accounts
 3. **Get Required Actions**: Retrieve the signing actions for the selected payment option
 4. **Sign Actions**: Sign the required permits/transactions using your wallet's signing infrastructure
-5. **Collect User Data** (if required): Gather any additional user information for compliance
+5. **Collect User Data** (if required): Display a WebView for the user to provide any required compliance information
 6. **Confirm Payment**: Submit signatures and complete the payment
 
 ## Supported Networks
@@ -102,14 +102,15 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
   </Accordion>
 
   <Accordion title="What if my wallet already has the required data?">
-    Wallets that already have verified user PII (e.g. a neobank, a card issuing wallet) can pass this information directly. The user will see just the payment flow without additional data collection steps.
+    Wallets that already have verified user PII (e.g. a neobank, a card issuing wallet) can prefill the WebView form by appending a `?prefill=<base64-json>` query parameter to the WebView URL. The `required` list from the `collectDataAction.schema` tells you which fields the form expects (e.g., `fullName`, `dateOfBirth`, `pobAddress`). The user will still see the form but with pre-populated fields, reducing friction.
   </Accordion>
 
   <Accordion title="How does this work technically?">
     When processing a payment:
-    1. Check if `response.collectData` is present
-    2. If present and you don't already have the required user information, collect it from the user
-    3. If present and you already have the required user information, skip collection and submit the data directly with the signatures
+    1. Check if `response.collectData` is present and has a `url` field
+    2. If present, display the URL in a WebView — the hosted form handles rendering, validation, and T&C acceptance
+    3. The WebView communicates completion via JavaScript bridge messages (`IC_COMPLETE` / `IC_ERROR`)
+    4. When the WebView completes, proceed to confirm the payment — no `collectedData` needs to be passed since the WebView submits data directly
   </Accordion>
 
   <Accordion title="Why is user information required?">
@@ -117,7 +118,40 @@ Support for all EVM chains, Solana, and additional native and non-native assets 
   </Accordion>
 
   <Accordion title="What are the requirements before submitting user information?">
-    Whether you are collecting the information or not, before submitting user information to WalletConnect, you must ensure the user has accepted:
+    The WebView-based data collection form handles Terms & Conditions and Privacy Policy acceptance as part of the form flow. The user must accept these before the form can be submitted.
+  </Accordion>
+
+  <Accordion title="What is the WebView data collection approach?">
+    SDKs now support a WebView-based approach for collecting user information. When `collectData.url` is present in the payment options response, wallets display this URL in a WebView instead of building native forms. The hosted form handles:
+    - Form rendering and field validation
+    - Terms & Conditions and Privacy Policy acceptance
+    - Data submission directly to the backend
+
+    The WebView communicates with the wallet via JavaScript bridge messages (`IC_COMPLETE` when done, `IC_ERROR` on failure). See the platform-specific documentation for implementation details.
+
+    We strongly recommend using the WebView-based flow over building custom native UI. Data collection requirements are driven by regulation and can evolve. The hosted WebView form is maintained and updated centrally so that wallets can automatically pick up changes.
+  </Accordion>
+
+  <Accordion title="Can wallets implement custom UI instead of the WebView form?">
+    Yes, with a caveat.
+    
+    Wallets that choose to implement custom UI assume responsibility for keeping their forms in sync with these changes. When changes are rolled out, wallets must implement them immediately. If the provided data is not what is requested, users in the relevant jurisdiction(s) will be unable to pay until the custom integration is updated. The WebView approach eliminates this overhead and ensures a consistent, up-to-date experience with minimal integration effort.
+
+    Wallets also must ensure the user has accepted:
+    - [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
+    - [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
+
+    The required user information can be sent to WalletConnect using schema in the `collect_data` object.
+
+    We strongly recommend using the WebView-based flow over building custom native UI. Data collection requirements are driven by regulation and can evolve. The hosted WebView form is maintained and updated centrally so that wallets can automatically pick up changes.
+  </Accordion>
+
+  <Accordion title="Can wallets pre-fill customer information?">
+    Yes.
+
+    Wallets can pre-fill user information and it will be shown in the WebView form.
+
+    If wallets choose to skip the WebView form, they must ensure the user has accepted:
     - [WalletConnect Terms and Conditions](https://walletconnect.com/terms)
     - [WalletConnect Privacy Policy](https://walletconnect.com/privacy)
   </Accordion>

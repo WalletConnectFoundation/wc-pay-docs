@@ -4,6 +4,10 @@ description: "Integrate WalletConnect Pay into your iOS wallet to enable seamles
 sidebarTitle: "Swift"
 ---
 
+import WebViewOverview from "/snippets/webview-data-collection-overview.mdx";
+import WebViewBestPractices from "/snippets/webview-data-collection-best-practices.mdx";
+import WebViewMessageTypes from "/snippets/webview-message-types.mdx";
+
 The WalletConnect Pay SDK allows wallet users to pay merchants using their crypto assets. The SDK handles payment option discovery, permit signing coordination, and payment confirmation while leveraging your wallet's existing signing infrastructure.
 
 ## Requirements
@@ -119,6 +123,7 @@ sequenceDiagram
     participant Wallet
     participant PaySDK as Pay SDK
     participant Backend as WalletConnect Pay
+    participant WebView
 
     User->>Wallet: Scan QR / Open payment link
     Wallet->>PaySDK: getPaymentOptions(link, accounts)
@@ -126,21 +131,23 @@ sequenceDiagram
     Backend-->>PaySDK: Payment options + merchant info
     PaySDK-->>Wallet: PaymentOptionsResponse
     Wallet->>User: Display payment options
-    
+
     User->>Wallet: Select payment option
     Wallet->>PaySDK: getRequiredPaymentActions(paymentId, optionId)
     PaySDK->>Backend: Get signing actions
     Backend-->>PaySDK: Required wallet RPC actions
     PaySDK-->>Wallet: List of actions to sign
-    
+
     Wallet->>User: Request signature(s)
     User->>Wallet: Approve & sign
-    
+
     alt Data collection required
-        Wallet->>User: Request additional info
-        User->>Wallet: Provide data
+        Wallet->>WebView: Load collectDataAction.url in WebView
+        WebView->>User: Display data collection form
+        User->>WebView: Fill form & accept T&C
+        WebView-->>Wallet: IC_COMPLETE message
     end
-    
+
     Wallet->>PaySDK: confirmPayment(signatures, collectedData)
     PaySDK->>Backend: Submit payment
     Backend-->>PaySDK: Payment status
@@ -250,33 +257,31 @@ Signatures must be in the same order as the actions array.
 
 If `response.collectData` is not nil, you must collect user information before confirming:
 
-```swift
-var collectedData: [CollectDataFieldResult]? = nil
+<WebViewOverview />
 
-if let collectDataAction = response.collectData {
-    collectedData = []
-    
-    for field in collectDataAction.fields {
-        // Show appropriate UI based on field.fieldType
-        let value: String
-        
-        switch field.fieldType {
-        case .text:
-            // Show text input for name fields
-            value = userInputtedValue
-        case .date:
-            // Show date picker for date of birth
-            // Format: "YYYY-MM-DD"
-            value = "1990-01-15"
-        }
-        
-        collectedData?.append(CollectDataFieldResult(
-            id: field.id,
-            value: value
-        ))
-    }
+```swift
+if let collectData = response.collectData, let url = collectData.url {
+    // Build prefill URL with known user data
+    // Use the "required" list from collectData.schema to determine which fields to prefill
+    let prefillData: [String: String] = [
+        "fullName": "John Doe",
+        "dateOfBirth": "1990-01-15",
+        "pobAddress": "123 Main St, New York, NY 10001"
+    ]
+    let jsonData = try JSONSerialization.data(withJSONObject: prefillData)
+    let prefillBase64 = jsonData.base64EncodedString()
+    var components = URLComponents(string: url)!
+    var queryItems = components.queryItems ?? []
+    queryItems.append(URLQueryItem(name: "prefill", value: prefillBase64))
+    components.queryItems = queryItems
+    let webViewUrl = components.string!
+
+    // Show WebView — see WebView Implementation section below
+    showWebView(url: webViewUrl)
 }
 ```
+
+<WebViewMessageTypes />
 
 </Step>
 
@@ -310,6 +315,103 @@ case .requiresAction:
 </Step>
 
 </Steps>
+
+## WebView Implementation
+
+When `collectDataAction.url` is present, display the URL in a `WKWebView`. The WebView handles form rendering, validation, and T&C acceptance.
+
+```swift
+import WebKit
+import SwiftUI
+
+struct PayDataCollectionWebView: UIViewRepresentable {
+    let url: URL
+    let onComplete: () -> Void
+    let onError: (String) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onComplete: onComplete, onError: onError)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(
+            context.coordinator,
+            name: "payDataCollectionComplete"
+        )
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+        let onComplete: () -> Void
+        let onError: (String) -> Void
+
+        init(onComplete: @escaping () -> Void, onError: @escaping (String) -> Void) {
+            self.onComplete = onComplete
+            self.onError = onError
+        }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard let body = message.body as? String,
+                  let data = body.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type = json["type"] as? String else { return }
+
+            DispatchQueue.main.async {
+                switch type {
+                case "IC_COMPLETE":
+                    self.onComplete()
+                case "IC_ERROR":
+                    let error = json["error"] as? String ?? "Unknown error"
+                    self.onError(error)
+                default:
+                    break
+                }
+            }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            // Open external links (T&C, Privacy Policy) in Safari
+            if let host = url.host, !host.contains("pay.walletconnect.com") {
+                UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+                return
+            }
+            decisionHandler(.allow)
+        }
+    }
+}
+
+func buildPrefillUrl(baseUrl: String, prefillData: [String: String]) -> String {
+    guard !prefillData.isEmpty,
+          let jsonData = try? JSONSerialization.data(withJSONObject: prefillData) else {
+        return baseUrl
+    }
+    let base64 = jsonData.base64EncodedString()
+    var components = URLComponents(string: baseUrl)!
+    var queryItems = components.queryItems ?? []
+    queryItems.append(URLQueryItem(name: "prefill", value: base64))
+    components.queryItems = queryItems
+    return components.string ?? baseUrl
+}
+```
 
 ## Complete Example
 
@@ -362,18 +464,17 @@ class PaymentManager {
             signatures.append(signature)
         }
         
-        // 5. Collect user data if required
-        var collectedData: [CollectDataFieldResult]? = nil
-        if let collectData = optionsResponse.collectData {
-            collectedData = try await collectUserData(fields: collectData.fields)
+        // 5. Collect data via WebView if required
+        if let collectData = optionsResponse.collectData, let url = collectData.url {
+            // Show WebView and wait for IC_COMPLETE message
+            try await showDataCollectionWebView(url: url)
         }
-        
+
         // 6. Confirm payment
         let result = try await WalletConnectPay.instance.confirmPayment(
             paymentId: optionsResponse.paymentId,
             optionId: selectedOption.id,
-            signatures: signatures,
-            collectedData: collectedData
+            signatures: signatures
         )
         
         guard result.status == .succeeded else {
@@ -387,7 +488,7 @@ class PaymentManager {
         signer: YourSignerProtocol
     ) async throws -> String {
         let rpc = action.walletRpc
-        
+
         // Parse params: ["address", "typedDataJson"]
         guard let paramsData = rpc.params.data(using: .utf8),
               let params = try JSONSerialization.jsonObject(with: paramsData) as? [Any],
@@ -395,25 +496,12 @@ class PaymentManager {
               let typedDataJson = params[1] as? String else {
             throw PaymentError.invalidParams
         }
-        
+
         // Use your wallet's signing implementation
         return try await signer.signTypedData(
             data: typedDataJson,
             address: walletAddress
         )
-    }
-    
-    private func collectUserData(
-        fields: [CollectDataField]
-    ) async throws -> [CollectDataFieldResult] {
-        // Implement your UI to collect user data
-        // This is typically done via a form/modal
-        return fields.map { field in
-            CollectDataFieldResult(
-                id: field.id,
-                value: getUserInput(for: field)
-            )
-        }
     }
 }
 ```
@@ -501,7 +589,7 @@ Main client for payment operations.
 |--------|-------------|
 | `getPaymentOptions(paymentLink:accounts:includePaymentInfo:)` | Fetch available payment options |
 | `getRequiredPaymentActions(paymentId:optionId:)` | Get signing actions for a payment option |
-| `confirmPayment(paymentId:optionId:signatures:collectedData:maxPollMs:)` | Confirm and execute the payment |
+| `confirmPayment(paymentId:optionId:signatures:maxPollMs:)` | Confirm and execute the payment |
 
 ### Data Types
 
@@ -513,6 +601,12 @@ struct PaymentOptionsResponse {
     let info: PaymentInfo?             // Merchant and amount details
     let options: [PaymentOption]       // Available payment methods
     let collectData: CollectDataAction? // Required user data fields (travel rule)
+    let resultInfo: PaymentResultInfo? // Transaction result details (present when payment already completed)
+}
+
+struct PaymentResultInfo {
+    let txId: String                   // Transaction ID
+    let optionAmount: PayAmount        // Token amount details
 }
 ```
 
@@ -575,24 +669,8 @@ struct WalletRpcAction {
 
 ```swift
 struct CollectDataAction {
-    let fields: [CollectDataField]     // Required fields to collect
-}
-
-struct CollectDataField {
-    let id: String                     // Field identifier
-    let name: String                   // Display name
-    let required: Bool                 // Whether field is required
-    let fieldType: CollectDataFieldType // Type of input needed
-}
-
-enum CollectDataFieldType {
-    case text                          // Text input (names, etc.)
-    case date                          // Date input (format: YYYY-MM-DD)
-}
-
-struct CollectDataFieldResult {
-    let id: String                     // Field identifier (from CollectDataField)
-    let value: String                  // User-provided value
+    let url: String                    // WebView URL for data collection
+    let schema: String?                // JSON schema describing required fields
 }
 ```
 
@@ -629,3 +707,5 @@ enum PaymentStatus {
 6. **Expiration**: Check `paymentInfo.expiresAt` and warn users if time is running low
 
 7. **User Data**: Only collect data when `collectData` is present in the response and you don't already have the required user data. If you already have the required data, you can submit this without collecting from the user. You must make sure the user accepts WalletConnect Terms and Conditions and Privacy Policy before submitting user information to WalletConnect.
+
+8. **WebView Data Collection**: When `collectData.url` is present, display the URL in a WKWebView rather than building native forms. The WebView handles form rendering, validation, and T&C acceptance.

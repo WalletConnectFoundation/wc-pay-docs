@@ -1,0 +1,21 @@
+## WebView-Based Data Collection
+
+When a payment requires user information (e.g., for Travel Rule compliance), the SDK returns a `collectDataAction` with a `url` field pointing to a WalletConnect-hosted form page.
+
+Instead of building native forms, wallets display this URL in a WebView. The hosted form handles rendering, validation, and Terms & Conditions acceptance. When the user completes the form, the WebView communicates back to the wallet via JavaScript bridge messages.
+
+### How It Works
+
+1. Check if `collectDataAction.url` is present in the payment options response
+2. Open the URL in a WebView within your wallet
+3. Optionally append a `prefill=<base64-json>` query parameter with known user data (e.g., name, date of birth, address). Use proper URL building to handle existing query parameters.
+4. Listen for JS bridge messages: `IC_COMPLETE` (success) or `IC_ERROR` (failure)
+5. On `IC_COMPLETE`, proceed to `confirmPayment()` **without** passing `collectedData` — the WebView submits data directly to the backend
+
+<Info>
+The `collectDataAction` also includes a `schema` field — a JSON schema string describing the required fields. The `required` list in this schema tells you which fields the form expects. Wallets can use these field names as keys when building the prefill JSON object. For example, if the schema's `required` array contains `["fullName", "dateOfBirth", "pobAddress"]`, you can prefill with `{"fullName": "...", "dateOfBirth": "...", "pobAddress": "..."}`.
+</Info>
+
+<Warning>
+When using the WebView approach, do **not** pass `collectedData` to `confirmPayment()`. The WebView handles data submission directly.
+</Warning>

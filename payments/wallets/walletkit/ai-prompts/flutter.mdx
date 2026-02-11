@@ -39,12 +39,12 @@ Before starting, ensure your wallet app has:
 ### Payment Flow Overview
 
 ```
-Payment Link → Detect → Get Options → [Collect Data] → Sign Actions → Confirm Payment → Result
+Payment Link → Detect → Get Options → [WebView Data Collection] → Sign Actions → Confirm Payment → Result
 ```
 
 1. **Payment Link Detection**: Identify incoming payment links from QR codes, deep links, or text input
 2. **Get Payment Options**: Retrieve available payment methods with merchant information
-3. **Data Collection** (optional): Collect KYC/compliance data if required by the payment
+3. **WebView Data Collection** (optional): Display WebView form for KYC/compliance data if required by the payment
 4. **Sign Actions**: Execute wallet signing operations (typically `eth_signTypedData_v4`)
 5. **Confirm Payment**: Submit signatures to complete the transaction
 6. **Handle Result**: Display success/failure and handle polling if needed
@@ -57,6 +57,7 @@ Payment Link → Detect → Get Options → [Collect Data] → Sign Actions → 
 | `PaymentOptionsResponse` | Contains payment ID, options, merchant info, and data collection requirements |
 | `PaymentOption` | Individual payment option with amount, account, and actions |
 | `Action` / `WalletRpcAction` | Signing request with chain ID, method, and parameters |
+| `CollectDataAction` | Optional data collection with WebView URL |
 | `ConfirmPaymentRequest` | Request to confirm payment with signatures |
 | `ConfirmPaymentResponse` | Payment status and polling information |
 | `PaymentStatus` | Enum: `requires_action`, `processing`, `succeeded`, `failed`, `expired` |
@@ -194,7 +195,18 @@ class PaymentOptionsResponse {
   final String paymentId;           // Unique ID for this payment session
   final PaymentInfo? info;          // Merchant and payment details
   final List<PaymentOption> options; // Available payment methods
-  final CollectDataAction? collectData; // Optional data collection requirements
+  final CollectDataAction? collectData; // Optional data collection with WebView URL
+  final PaymentResultInfo? resultInfo; // Transaction result details (present when payment already completed)
+}
+
+class PaymentResultInfo {
+  final String txId;               // Transaction ID
+  final PayAmount optionAmount;    // Token amount details
+}
+
+class CollectDataAction {
+  final String url;                // WebView URL for data collection
+  final String? schema;            // JSON schema describing required fields
 }
 
 class PaymentInfo {
@@ -214,57 +226,121 @@ class PaymentOption {
 }
 ```
 
-### Step 5: Handle Data Collection (Optional)
+### Step 5: Handle Data Collection via WebView
 
-If `response.collectData` is not null, you must collect the required data before proceeding.
+If `response.collectData` is not null and has a `url`, display the URL in a WebView for data collection. The hosted form handles rendering, validation, and T&C acceptance.
 
 ```dart
-/// Collect required data fields
-Future<List<CollectDataFieldResult>?> collectRequiredData(
-  CollectDataAction collectData,
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+/// Show WebView for data collection
+Future<bool> showDataCollectionWebView(
+  BuildContext context,
+  String url,
 ) async {
-  final List<CollectDataFieldResult> results = [];
+  final completer = Completer<bool>();
 
-  for (final field in collectData.fields) {
-    // Present UI to collect each field
-    final value = await showDataCollectionDialog(field);
+  Navigator.push(context, MaterialPageRoute(
+    builder: (_) => PayDataCollectionWebView(
+      url: url,
+      onComplete: () {
+        Navigator.pop(context);
+        completer.complete(true);
+      },
+      onError: (error) {
+        Navigator.pop(context);
+        completer.complete(false);
+        showError('Data collection failed: $error');
+      },
+    ),
+  ));
 
-    if (value == null && field.required) {
-      // User cancelled and field is required
-      return null;
-    }
-
-    if (value != null) {
-      results.add(CollectDataFieldResult(
-        id: field.id,
-        value: value,
-      ));
-    }
-  }
-
-  return results;
+  return completer.future;
 }
 
-/// Example: Show dialog for a single field
-Future<String?> showDataCollectionDialog(CollectDataField field) async {
-  switch (field.fieldType) {
-    case CollectDataFieldType.text:
-      return await showTextInputDialog(
-        label: field.name,
-        required: field.required,
-      );
-    case CollectDataFieldType.date:
-      return await showDatePickerDialog(
-        label: field.name,
-        required: field.required,
-      );
+class PayDataCollectionWebView extends StatefulWidget {
+  final String url;
+  final VoidCallback onComplete;
+  final ValueChanged<String> onError;
+
+  const PayDataCollectionWebView({
+    super.key,
+    required this.url,
+    required this.onComplete,
+    required this.onError,
+  });
+
+  @override
+  State<PayDataCollectionWebView> createState() =>
+      _PayDataCollectionWebViewState();
+}
+
+class _PayDataCollectionWebViewState extends State<PayDataCollectionWebView> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) => setState(() => _isLoading = false),
+        onNavigationRequest: (request) {
+          if (!request.url.contains('pay.walletconnect.com')) {
+            launchUrl(Uri.parse(request.url),
+                mode: LaunchMode.externalApplication);
+            return NavigationDecision.prevent;
+          }
+          return NavigationDecision.navigate;
+        },
+      ))
+      ..addJavaScriptChannel(
+        'ReactNativeWebView',
+        onMessageReceived: (message) {
+          try {
+            final data = jsonDecode(message.message) as Map<String, dynamic>;
+            switch (data['type']) {
+              case 'IC_COMPLETE':
+                widget.onComplete();
+                break;
+              case 'IC_ERROR':
+                widget.onError(data['error'] ?? 'Unknown error');
+                break;
+            }
+          } catch (_) {}
+        },
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Information Collection')),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading) const Center(child: CircularProgressIndicator()),
+        ],
+      ),
+    );
   }
 }
 ```
 
-**Field Types:**
-- `CollectDataFieldType.text` - Free-form text input (e.g., full name, place of birth)
-- `CollectDataFieldType.date` - Date input, format as `YYYY-MM-DD`
+> **Important:** When using the WebView approach, do **not** pass `collectedData` to `confirmPayment()`. The WebView submits data directly to the backend.
+
+Add `webview_flutter` and `url_launcher` to your dependencies:
+
+```yaml
+dependencies:
+  webview_flutter: ^4.10.0
+  url_launcher: ^6.1.0
+```
 
 ### Step 6: Get Required Payment Actions
 
@@ -428,13 +504,11 @@ Future<ConfirmPaymentResponse> confirmPayment({
   required String paymentId,
   required String optionId,
   required List<String> signatures,
-  List<CollectDataFieldResult>? collectedData,
 }) async {
   final request = ConfirmPaymentRequest(
     paymentId: paymentId,
     optionId: optionId,
     signatures: signatures,
-    collectedData: collectedData,
     maxPollMs: 60000, // Poll for up to 60 seconds
   );
 
@@ -513,11 +587,13 @@ Future<void> processPayment(String paymentLink) async {
     final selectedOption = await showPaymentOptionsModal(options);
     if (selectedOption == null) return; // User cancelled
 
-    // Step 3: Collect data if required
-    List<CollectDataFieldResult>? collectedData;
-    if (options.collectData != null) {
-      collectedData = await collectRequiredData(options.collectData!);
-      if (collectedData == null) return; // User cancelled
+    // Step 3: Collect data via WebView if required
+    if (options.collectData?.url != null) {
+      final success = await showDataCollectionWebView(
+        context,
+        options.collectData!.url,
+      );
+      if (!success) return; // User cancelled or error
     }
 
     // Step 4: Get actions if not included in option
@@ -540,7 +616,6 @@ Future<void> processPayment(String paymentLink) async {
         paymentId: options.paymentId,
         optionId: selectedOption.id,
         signatures: signatures,
-        collectedData: collectedData,
         maxPollMs: 60000,
       ),
     );
@@ -856,7 +931,7 @@ walletKit.pay
 - [ ] `eth_signTypedData_v4` signing implemented
 - [ ] Hex value normalization for typed data signing
 - [ ] Signature order matches action order
-- [ ] Data collection UI for compliance fields
+- [ ] WebView data collection for compliance (using webview_flutter)
 - [ ] Error handling for all error types
 - [ ] Loading states during API calls
 - [ ] Success/failure result screens

@@ -1,0 +1,17 @@
+### WebView Message Types
+
+The WebView communicates with your wallet through JavaScript bridge messages. The message payload is a JSON string with the following structure:
+
+| Message Type | Payload | Description |
+|-------------|---------|-------------|
+| `IC_COMPLETE` | `{ "type": "IC_COMPLETE", "success": true }` | User completed the form successfully. Proceed to payment confirmation. |
+| `IC_ERROR` | `{ "type": "IC_ERROR", "error": "..." }` | An error occurred. Display the error message and allow the user to retry. |
+
+#### Platform-Specific Bridge Names
+
+| Platform | Bridge Name | Handler |
+|----------|------------|---------|
+| Kotlin (Android) | `AndroidWallet` | `@JavascriptInterface onDataCollectionComplete(json: String)` |
+| Swift (iOS) | `payDataCollectionComplete` | `WKScriptMessageHandler.didReceive(message:)` |
+| Flutter | `ReactNativeWebView` (injected via JS bridge) | `JavaScriptChannel.onMessageReceived` |
+| React Native | `ReactNativeWebView` (native) | `WebView.onMessage` prop |
