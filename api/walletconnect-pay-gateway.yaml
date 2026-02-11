@@ -152,7 +152,7 @@ paths:
       tags:
         - Gateway
       summary: Confirm a payment
-      description: "This endpoint confirms a payment and submits it to the blockchain for processing. This is the COMMITMENT point - after this succeeds, the payment is durable."
+      description: "This endpoint confirms a payment and submits it to the blockchain for processing."
       operationId: confirm_payment_handler
       parameters:
         - name: Api-Key
