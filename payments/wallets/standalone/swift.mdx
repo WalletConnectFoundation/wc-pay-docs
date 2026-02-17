@@ -265,7 +265,7 @@ if let collectData = selectedOption.collectData, let url = collectData.url {
     // Use the "required" list from collectData.schema to determine which fields to prefill
     let prefillData: [String: String] = [
         "fullName": "John Doe",
-        "dateOfBirth": "1990-01-15",
+        "dob": "1990-01-15",
         "pobAddress": "123 Main St, New York, NY 10001"
     ]
     let jsonData = try JSONSerialization.data(withJSONObject: prefillData)

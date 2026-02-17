@@ -295,7 +295,7 @@ selectedOption.collectData?.let { collectAction ->
         // Use the "required" list from collectAction.schema to determine which fields to prefill
         val prefillJson = JSONObject().apply {
             put("fullName", "John Doe")
-            put("dateOfBirth", "1990-01-15")
+            put("dob", "1990-01-15")
             put("pobAddress", "123 Main St, New York, NY 10001")
         }.toString()
         val prefillBase64 = Base64.encodeToString(

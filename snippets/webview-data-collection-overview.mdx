@@ -23,7 +23,7 @@ The recommended approach is to display all payment options upfront, then handle 
 | `null` | `null` | No IC needed for any option |
 
 <Info>
-The `collectData` also includes a `schema` field — a JSON schema string describing the required fields. The `required` list in this schema tells you which fields the form expects. Wallets can use these field names as keys when building the prefill JSON object. For example, if the schema's `required` array contains `["fullName", "dateOfBirth", "pobAddress"]`, you can prefill with `{"fullName": "...", "dateOfBirth": "...", "pobAddress": "..."}`.
+The `collectData` also includes a `schema` field — a JSON schema string describing the required fields. The `required` list in this schema tells you which fields the form expects. Wallets can use these field names as keys when building the prefill JSON object. For example, if the schema's `required` array contains `["fullName", "dob", "pobAddress"]`, you can prefill with `{"fullName": "...", "dob": "...", "pobAddress": "..."}`.
 </Info>
 
 <Note>
