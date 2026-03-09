@@ -3,9 +3,17 @@ title: "WalletConnect Pay - Wallet Integration"
 sidebarTitle: "Wallet Integration"
 ---
 
-Wallets can make their app fully compatible with WalletConnect Pay to deliver a truly native payment experience. Users pay with crypto in real world scenarios with minimal friction while the wallet retains custody and full control over the user experience.
+Your users hold crypto and stablecoins. WalletConnect Pay gives them somewhere to spend it.
 
-WalletConnect provides two integration approaches for enabling WalletConnect Pay in your wallet:
+One integration connects your wallet to a global network of PSPs and merchants — online and in-store. You control the experience. WalletConnect Pay handles the rest: payment execution, compliance, settlement, and gas.
+
+What's included
+- Consistent, compliant payment flows across ecommerce and point of sale
+- Interchange revenue for your wallet on every eligible transaction, settled in $WCT
+- Cashback in $WCT for your users on every purchase, funded by WalletConnect
+- Supported at launch on Ethereum, Solana, Base, Optimism, Arbitrum, and Polygon — with more networks to follow
+
+WalletConnect provides three integration approaches for enabling WalletConnect Pay in your wallet:
 
 ## Integration Options
 
@@ -61,7 +69,7 @@ For wallets that prefer direct API integration without using an SDK, you can use
 
 To get started with WalletConnect Pay integration:
 
-1. **Get a Project ID**: Create a project at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) to obtain your Project ID.
+1. **Get a Project ID**: Create a wallet project at the [WalletConnect Dashboard](https://dashboard.walletconnect.com) to obtain your Project ID.
 
 2. **Choose your integration approach**: Select either the WalletKit integration (if you already use WalletKit) or the standalone Pay SDK integration.
 
@@ -86,18 +94,6 @@ Regardless of which integration approach you choose, the payment flow follows th
 5. **Collect User Data** (if required for selected option): If the selected payment option requires compliance information, display a WebView for the user to provide it
 6. **Confirm Payment**: Submit signatures and complete the payment
 
-## Testing
-
-Test your WalletConnect Pay integration with the Point-of-Sale app in the WalletConnect Dashboard. To enable the app, configure a mock-merchant recipient address. Payments will arrive to this address and you won't lose any testing funds.
-
-<video
-  controls
-  className="w-full"
-  autoPlay
-  muted
-  src="/images/videos/wc-pay-testing.mp4"
-></video>
-
 ## Recommended Implementation
 
 For best user experience, follow the recommended implementation below.
@@ -110,9 +106,21 @@ For best user experience, follow the recommended implementation below.
   src="/images/videos/wc-pay-recommended-implementation.mp4"
 ></video>
 
+## Testing
+
+Test your WalletConnect Pay integration with the Point-of-Sale app in the WalletConnect Dashboard. To enable the app, configure a mock-merchant recipient address. Payments will arrive to this address and you won't lose any testing funds.
+
+<video
+  controls
+  className="w-full"
+  autoPlay
+  muted
+  src="/images/videos/wc-pay-testing.mp4"
+></video>
+
 ## Earn Revenue
 
-Wallets can earn interchange-like revenue on eligible WalletConnect Pay payments. To activate, complete the Form found in the WalletConnect Dashboard.
+Wallets can earn interchange-like revenue on eligible WalletConnect Pay payments. To activate, make sure to complete a successful payment with your integration, then submit the Form found in the WalletConnect Dashboard. We will review the submission and confirm the results to the submitted contact email.
 
 <img src="/images/earn-revenue.png" />
 
