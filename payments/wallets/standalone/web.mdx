@@ -35,8 +35,8 @@ yarn add @walletconnect/pay
 
 The SDK uses a provider abstraction that allows different implementations:
 
-- **NativeProvider**: Uses React Native uniffi module (current)
-- **WasmProvider**: Uses WebAssembly module (coming soon for web browsers)
+- **WasmProvider**: Uses WebAssembly module for web browsers
+- **NativeProvider**: Uses platform-specific uniffi module (for React Native environments)
 
 The SDK auto-detects the best available provider for your environment.
 
