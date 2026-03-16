@@ -1,15 +1,18 @@
 ---
-title: "WalletConnect Pay via WalletKit - Web/Node.js"
-description: "Integrate WalletConnect Pay through WalletKit for a unified payment experience in your Web/Node.js wallet."
-sidebarTitle: "Web/Node.js"
+title: "WalletConnect Pay via WalletKit - React Native"
+description: "Integrate WalletConnect Pay through WalletKit for a unified payment experience in your React Native wallet."
+sidebarTitle: "React Native"
 ---
 
 import AppIdSnippet from "/snippets/app-id.mdx";
+import WebViewOverview from "/snippets/webview-data-collection-overview.mdx";
+import WebViewBestPractices from "/snippets/webview-data-collection-best-practices.mdx";
+import WebViewMessageTypes from "/snippets/webview-message-types.mdx";
 
-This documentation covers integrating WalletConnect Pay through WalletKit for Web/Node.js wallets. This approach provides a unified API where Pay is built into WalletKit, simplifying the integration for wallet developers.
+This documentation covers integrating WalletConnect Pay through WalletKit for React Native wallets. This approach provides a unified API where Pay is built into WalletKit, simplifying the integration for wallet developers.
 
 <Tip>
-**Using AI for Integration?** If you're using an AI IDE or assistant to help with integration, you can provide it with our comprehensive [AI integration prompt](/payments/wallets/walletkit/ai-prompts/react-native) for better context and guidance. The React Native prompt applies to Web/Node.js as well since they share the same JavaScript SDK.
+**Using AI for Integration?** If you're using an AI IDE or assistant to help with integration, you can provide it with our comprehensive [AI integration prompt](/payments/wallets/walletkit/ai-prompts/react-native) for better context and guidance.
 </Tip>
 
 ## Requirements
@@ -94,7 +97,7 @@ sequenceDiagram
     participant Wallet
     participant WalletKit as WalletKit.Pay
     participant Backend as WalletConnect Pay
-    participant Iframe
+    participant WebView
 
     User->>Wallet: Scan QR / Open payment link
     Wallet->>WalletKit: isPaymentLink(uri)
@@ -115,10 +118,10 @@ sequenceDiagram
     User->>Wallet: Approve & sign
     
     alt Data collection required
-        Wallet->>Iframe: Load collectDataAction.url in iframe
-        Iframe->>User: Display data collection form
-        User->>Iframe: Fill form & accept T&C
-        Iframe-->>Wallet: IC_COMPLETE message via postMessage
+        Wallet->>WebView: Load collectDataAction.url in WebView
+        WebView->>User: Display data collection form
+        User->>WebView: Fill form & accept T&C
+        WebView-->>Wallet: IC_COMPLETE message
     end
     
     Wallet->>WalletKit: pay.confirmPayment(params)
@@ -210,41 +213,7 @@ Signatures must be in the same order as the actions array.
 
 Some payments may require additional user data:
 
-## Iframe-Based Data Collection
-
-When a payment requires user information (e.g., for Travel Rule compliance), the SDK returns a `collectData` field on individual payment options. Each option may independently require data collection — some options may require it while others don't.
-
-### Recommended Flow (Per-Option)
-
-The recommended approach is to display all payment options upfront, then handle data collection only when the user selects an option that requires it:
-
-1. Call `getPaymentOptions` and display all available options to the user
-2. Show a visual indicator (e.g., "Info required" badge) on options where `option.collectData` is present
-3. When the user selects an option, check `selectedOption.collectData`
-4. If present, open `selectedOption.collectData.url` in an iframe within your wallet
-5. Optionally append a `prefill=<base64-json>` query parameter with known user data (e.g., name, date of birth, address). Use proper URL building to handle existing query parameters.
-6. Listen for `postMessage` events: `IC_COMPLETE` (success) or `IC_ERROR` (failure)
-7. On `IC_COMPLETE`, proceed to `confirmPayment()` **without** passing `collectedData` — the iframe submits data directly to the backend
-
-### Decision Matrix
-
-| Response `collectData` | `option.collectData` | Behavior |
-|---|---|---|
-| present | present | Option requires IC — use `option.collectData.url` |
-| present | `null` | Option does NOT require IC (others might) — skip IC for this option |
-| `null` | `null` | No IC needed for any option |
-
-<Info>
-The `collectData` also includes a `schema` field — a JSON schema string describing the required fields. The `required` list in this schema tells you which fields the form expects. Wallets can use these field names as keys when building the prefill JSON object. For example, if the schema's `required` array contains `["fullName", "dob", "pobAddress"]`, you can prefill with `{"fullName": "...", "dob": "...", "pobAddress": "..."}`.
-</Info>
-
-<Note>
-The top-level `collectData` on the payment options response is still available for backward compatibility. However, the per-option `collectData` is the recommended approach as it provides more granular control over the flow.
-</Note>
-
-<Warning>
-When using the iframe approach, do **not** pass `collectedData` to `confirmPayment()`. The iframe handles data submission directly.
-</Warning>
+<WebViewOverview />
 
 ```javascript
 if (options.collectData?.url) {
@@ -256,21 +225,14 @@ if (options.collectData?.url) {
   };
   const prefillBase64 = btoa(JSON.stringify(prefillData));
   const separator = options.collectData.url.includes("?") ? "&" : "?";
-  const iframeUrl = `${options.collectData.url}${separator}prefill=${prefillBase64}`;
+  const webViewUrl = `${options.collectData.url}${separator}prefill=${prefillBase64}`;
 
-  // Show data collection in an iframe or popup and wait for IC_COMPLETE message
-  showDataCollectionView(iframeUrl);
+  // Show WebView and wait for IC_COMPLETE message
+  showDataCollectionWebView(webViewUrl);
 }
 ```
 
-### Iframe Message Types
-
-The iframe communicates with your wallet through `postMessage` events. The message payload is a JSON string with the following structure:
-
-| Message Type | Payload | Description |
-|-------------|---------|-------------|
-| `IC_COMPLETE` | `{ "type": "IC_COMPLETE", "success": true }` | User completed the form successfully. Proceed to payment confirmation. |
-| `IC_ERROR` | `{ "type": "IC_ERROR", "error": "..." }` | An error occurred. Display the error message and allow the user to retry. |
+<WebViewMessageTypes />
 
 </Step>
 
@@ -303,47 +265,62 @@ if (result.status === "succeeded") {
 
 </Steps>
 
-## Data Collection Implementation
+## WebView Implementation
 
-When `collectData.url` is present, display the URL in an iframe or modal. Listen for `postMessage` events to handle completion:
+When `collectData.url` is present, display the URL in a WebView using `react-native-webview`. Install the dependency:
 
-```javascript
-function showDataCollectionView(url) {
-  // Create a modal/overlay container
-  const overlay = document.createElement("div");
-  overlay.style.cssText =
-    "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;";
+```bash
+npm install react-native-webview@13.16.0
+```
 
-  const iframe = document.createElement("iframe");
-  iframe.src = url;
-  iframe.style.cssText = "width:450px;height:650px;border:none;border-radius:12px;";
+```jsx
+import React, { useCallback } from "react";
+import { WebView } from "react-native-webview";
+import { Linking, View, ActivityIndicator } from "react-native";
 
-  overlay.appendChild(iframe);
-  document.body.appendChild(overlay);
-
-  return new Promise((resolve, reject) => {
-    function handleMessage(event) {
+function PayDataCollectionWebView({ url, onComplete, onError }) {
+  const handleMessage = useCallback(
+    (event) => {
       try {
-        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data.type === "IC_COMPLETE") {
-          cleanup();
-          resolve();
-        } else if (data.type === "IC_ERROR") {
-          cleanup();
-          reject(new Error(data.error || "Unknown error"));
+        const data = JSON.parse(event.nativeEvent.data);
+        switch (data.type) {
+          case "IC_COMPLETE":
+            onComplete();
+            break;
+          case "IC_ERROR":
+            onError(data.error || "Unknown error");
+            break;
         }
       } catch {
         // Ignore non-JSON messages
       }
-    }
+    },
+    [onComplete, onError]
+  );
 
-    function cleanup() {
-      window.removeEventListener("message", handleMessage);
-      document.body.removeChild(overlay);
+  const handleNavigationRequest = useCallback((request) => {
+    if (!request.url.includes("pay.walletconnect.com")) {
+      Linking.openURL(request.url);
+      return false;
     }
+    return true;
+  }, []);
 
-    window.addEventListener("message", handleMessage);
-  });
+  return (
+    <WebView
+      source={{ uri: url }}
+      onMessage={handleMessage}
+      onShouldStartLoadWithRequest={handleNavigationRequest}
+      javaScriptEnabled
+      domStorageEnabled
+      startInLoadingState
+      renderLoading={() => (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" />
+        </View>
+      )}
+    />
+  );
 }
 
 function buildPrefillUrl(baseUrl, prefillData) {
@@ -422,9 +399,9 @@ class PaymentManager {
         actions.map((action) => this.signAction(action, walletAddress))
       );
 
-      // Step 5: Collect data via iframe if required
+      // Step 5: Collect data via WebView if required
       if (options.collectData?.url) {
-        await this.showDataCollectionView(options.collectData.url);
+        await this.showDataCollectionWebView(options.collectData.url);
       }
 
       // Step 6: Confirm payment
@@ -604,7 +581,7 @@ interface AmountDisplay {
 
 ```typescript
 interface CollectDataAction {
-  /** URL for data collection (displayed in iframe) */
+  /** WebView URL for data collection */
   url: string;
   /** JSON schema describing required fields */
   schema?: string;
@@ -652,4 +629,4 @@ try {
 
 9. **User Data**: Only collect data when `collectData` is present in the response and you don't already have the required user data. If you already have the required data, you can submit this without collecting from the user. You must make sure the user accepts WalletConnect Terms and Conditions and Privacy Policy before submitting user information to WalletConnect.
 
-10. **Data Collection**: When `collectData.url` is present, display the URL in an iframe or modal rather than building custom forms. The hosted form handles rendering, validation, and T&C acceptance.
+10. **WebView Data Collection**: When `collectData.url` is present, display the URL in a WebView using `react-native-webview` rather than building native forms. The WebView handles form rendering, validation, and T&C acceptance.

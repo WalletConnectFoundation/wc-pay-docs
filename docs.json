@@ -49,7 +49,8 @@
                             "payments/wallets/standalone/kotlin",
                             "payments/wallets/standalone/swift",
                             "payments/wallets/standalone/react-native",
-                            "payments/wallets/standalone/flutter"
+                            "payments/wallets/standalone/flutter",
+                            "payments/wallets/standalone/web"
                           ]
                         },
                         {
@@ -58,6 +59,7 @@
                             "payments/wallets/walletkit/kotlin",
                             "payments/wallets/walletkit/swift",
                             "payments/wallets/walletkit/flutter",
+                            "payments/wallets/walletkit/react-native",
                             "payments/wallets/walletkit/web"
                           ]
                         },
